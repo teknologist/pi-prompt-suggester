@@ -18,9 +18,13 @@ Instead of naive autocomplete, `pi-autoprompter` uses a two-stage approach:
 
 ## Status
 
-Scaffold initialized.
+Architecture scaffold initialized (module boundaries + ports/adapters + config schema).
+Implementations are intentionally pending.
 
 See:
 - [`vision.md`](./vision.md)
 - [`docs/architecture.md`](./docs/architecture.md)
 - [`docs/meta-prompts.md`](./docs/meta-prompts.md)
+- [`docs/implementation-plan.md`](./docs/implementation-plan.md)
+- [`docs/architecture-plan.md`](./docs/architecture-plan.md)
+- [`config/autoprompter.config.example.json`](./config/autoprompter.config.example.json)

@@ -18,10 +18,12 @@ For advanced workflows, users steer sessions with evolving goals, architectural 
 The right next prompt is best predicted by combining:
 1. **Short-horizon context** (last turns, current execution state)
 2. **Long-horizon intent prior** (seeded understanding of what this repo/user is trying to achieve)
+3. **Steering signal** (whether the user follows the suggested prompt or changes course)
 
-Therefore, we use a **two-stage system**:
+Therefore, we use a **two-stage system** plus lightweight feedback:
 - A **meta-meta seeding pass** that infers durable project/user intent from the repository
 - A **per-turn suggestion pass** that predicts the immediate next user prompt
+- A **post-turn steering capture** that records if the suggestion was followed vs rewritten and feeds that signal into future suggestions
 
 ## Design principles
 
@@ -88,6 +90,12 @@ Output:
 - Prefills or ghosts suggestion in editor
 - Keyboard accept/edit workflow
 
+### 5) Suggestion steering signal
+
+- Track whether the user submitted the suggested prompt as-is or changed course
+- Store this as lightweight local context for the next suggestion pass
+- Keep the signal simple and interpretable (no heavy personalization heuristics in v1)
+
 ## Non-goals (initial)
 
 - Fully autonomous conversation steering
@@ -98,6 +106,7 @@ Output:
 
 - Users accept or lightly edit suggestions frequently
 - Suggestions reduce friction and increase session throughput
+- Follow-vs-change steering signal improves subsequent suggestions
 - Token overhead remains bounded and predictable
 - Seed remains stable and useful across many turns
 

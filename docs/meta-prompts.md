@@ -1,66 +1,96 @@
-# Prompt Templates (Draft)
+# Prompt Templates (Revised)
 
-## A) Meta-meta prompt (seeding)
+## A) Seeder prompt (async, read-only intent analysis)
 
-Purpose: infer durable project/user intent from repository signals.
+Purpose: infer durable project intent from repository signals without modifying files.
 
 ```text
-You are an intent distillation system.
+You are a read-only repository intent analyst.
+
+Hard constraints:
+- Do not modify files.
+- Do not propose edits.
+- Only analyze and return distilled intent.
 
 Input:
-- Repository context (file list + selected snippets)
-- Optional prior seed
+- Repository context (selected files/snippets)
+- Reseed metadata:
+  - reason: {{reason}}
+  - changed files: {{changedFiles}}
+  - optional git diff summary: {{gitDiffSummary}}
+- Optional previous seed
 
 Task:
-1. Infer the most likely durable intent behind this project.
-2. Identify strategic objectives and constraints.
-3. Identify the most important files and why they matter.
-4. List open questions/ambiguities.
-5. Produce concise, high-signal output for downstream prompt suggestion.
+1) Distill durable project intent.
+2) Extract top objectives and constraints.
+3) Identify key files and why they matter.
+4) Note open questions/unknowns.
+5) If reseeding, explain what likely changed in intent (if anything).
 
-Rules:
-- Prefer evidence-based inference.
-- Distinguish facts vs hypotheses.
-- Keep output compact and structured.
-
-Return JSON only with schema:
-{
-  "projectIntentSummary": string,
-  "topObjectives": string[],
-  "constraints": string[],
-  "keyFiles": [{"path": string, "whyImportant": string}],
-  "openQuestions": string[],
-  "confidence": number
-}
+Return compact JSON with fields:
+- projectIntentSummary
+- topObjectives[]
+- constraints[]
+- keyFiles[] {path, whyImportant}
+- openQuestions[]
+- reseedNotes
 ```
 
-## B) Meta prompt (per-turn suggestion)
+---
 
-Purpose: suggest the next user prompt.
+## B) Prompt-generator meta prompt (critical path)
+
+Purpose: generate one high-value next user prompt from latest assistant output + steering history.
 
 ```text
-You suggest the user's likely next prompt in a coding-agent session.
-
-Inputs:
-- Intent seed (distilled, long-horizon)
-- Recent user prompts (trajectory)
-- Latest assistant turn summary
-- Current execution signals
+Role:
+You generate the next user prompt for this coding-agent session.
 
 Task:
-Generate ONE high-value next prompt the user is likely to send.
+Given the latest assistant turn and prior steering behavior, output the single best next user message.
 
-Rules:
-- Be concrete and actionable.
-- Continue the current trajectory.
-- Prefer high expected utility over generic advice.
-- No preamble.
-- If uncertain, lower confidence and keep suggestion conservative.
+LatestAssistantTurn:
+{{assistantTurnText}}
 
-Return JSON only:
-{
-  "suggestion": string,
-  "confidence": number,
-  "intentTag": string
-}
+TurnStatus:
+{{turnStatus}}   # success | error | aborted
+
+IntentSeed:
+{{intentSeedOrNone}}
+
+RecentSteeringAccepted:
+{{acceptedExamples}}
+# examples formatted as:
+# - suggested: "..."
+#   user_sent: "..."
+
+RecentSteeringChanged:
+{{changedExamples}}
+# examples formatted as:
+# - suggested: "..."
+#   user_sent: "..."
+
+Instructions:
+- Prefer concrete, actionable prompts.
+- Continue trajectory unless context strongly indicates a pivot.
+- Learn from changed examples: avoid repeating rejected phrasing/direction.
+- Keep it concise and natural as a user prompt.
+- If confidence is low, output exactly: [no suggestion]
+
+Output:
+Return plain text only:
+- either one suggested prompt
+- or [no suggestion]
 ```
+
+---
+
+## C) Deterministic fast-path (no model call)
+
+If `TurnStatus` is `error` or `aborted`, bypass prompt generator and suggest:
+
+```text
+continue
+```
+
+(Future optional: trigger internal continue action directly if pi exposes a safe API.)

@@ -1,95 +1,101 @@
-# Architecture (Draft)
+# Architecture (Revised)
 
 ## Overview
 
-`pi-autoprompter` is a pi extension with two pipelines:
+`pi-autoprompter` has three runtime parts:
 
-1. **Seeding pipeline** (slow, infrequent)
-2. **Suggestion pipeline** (fast, every turn)
+1. **Suggestion pipeline** (every agent turn)
+2. **Async seed manager** (background, non-blocking)
+3. **Steering tracker** (accepted vs changed history)
 
----
-
-## 1) Seeding pipeline (meta-meta)
-
-### Inputs
-- Repository tree + selected high-signal files
-- Optional git metadata (recent commit subjects)
-
-### Steps
-1. Discover candidate files (README, vision, docs, ADRs, architecture notes, roadmap files, key config/code entrypoints).
-2. Rank candidates for intent relevance.
-3. Run meta-meta prompt to infer durable user/project intent.
-4. Emit normalized seed artifact.
-
-### Outputs
-`./.pi/autoprompter/seed.json` (proposed)
-
-Example fields:
-- `projectIntentSummary`
-- `topObjectives[]`
-- `constraints[]`
-- `keyFiles[]` with `path`, `whyImportant`, `hash`
-- `openQuestions[]`
-- `confidence`
-- `generatedAt`
-- `seedVersion`
-
-### Invalidation
-Recompute if:
-- any `keyFiles[].hash` changes
-- explicit `/autoprompter reseed`
-- optional periodic staleness rule
+The system intentionally avoids complex heuristic ladders. The prompt-generator model gets rich context and decides.
 
 ---
 
-## 2) Suggestion pipeline (meta)
+## 1) Async seed manager
+
+### Requirements
+- Never block session startup.
+- Run seeding/reseeding in background.
+- Check seed staleness on session start and after every agent turn.
+
+### Flow
+1. Load existing seed if present.
+2. Run staleness check (`keyFiles` hash + optional git diff from `sourceCommit`).
+3. If stale/missing, enqueue async reseed with payload:
+   - `reason`
+   - `changedFiles[]`
+   - optional `gitDiffSummary`
+4. Persist new `seed.json` when ready.
+
+### Read-only policy
+- Prefer isolated seeding worker with restricted tools.
+- If strict RO sandbox is unavailable, enforce practical guardrails:
+  - read-only instruction in prompt
+  - pre/post `git status --porcelain` checks
+  - reject run if any files changed
+
+---
+
+## 2) Suggestion pipeline
 
 ### Trigger
-- `turn_end` or `agent_end` in pi extension lifecycle.
+- `agent_end` (or equivalent turn-end hook)
 
-### Runtime context pack (budgeted)
-- Last assistant turn summary
-- Last N user prompts (initially 8-12)
-- Current execution state hints (errors/failures/touched files)
-- Intent seed excerpt
+### Inputs
+- latest assistant turn text (raw)
+- turn status (`success | error | aborted`)
+- intent seed (if available)
+- steering history (recent accepted/changed examples)
 
-### Prompting
-- Use strict output schema (JSON)
-- Return:
-  - `suggestion`
-  - `confidence`
-  - `intentTag`
-  - `reasoningBrief` (optional internal/debug)
+### Deterministic fast-path
+- If turn status is `error` or `aborted`, suggest `continue` directly.
 
-### Post-processing
-- Confidence gate
-- Sanitization (length, imperative style, no boilerplate)
-- Render to UI as suggestion/prefill
+### Model path
+- Build meta prompt with fixed sections:
+  1) role/task
+  2) latest assistant output
+  3) turn status
+  4) seed summary
+  5) accepted examples
+  6) changed examples
+  7) instructions
+- Model returns plain text:
+  - one suggestion, or
+  - `[no suggestion]`
+
+### UI
+- Prefill editor (`ctx.ui.setEditorText(...)`) for MVP.
 
 ---
 
-## 3) Storage
+## 3) Steering tracker
 
-Proposed local state directory:
+For each shown suggestion, capture next user message and store:
+- `suggestedPrompt`
+- `actualUserPrompt`
+- `classification` (`accepted_exact | accepted_edited | changed_course`)
+- `similarity`
+
+This history is fed back into subsequent prompt generation as concrete examples.
+
+---
+
+## 4) Storage
+
 - `./.pi/autoprompter/seed.json`
-- `./.pi/autoprompter/state.json` (history, metrics, settings)
+- `./.pi/autoprompter/state.json`
+
+`state.json` includes:
+- `lastSuggestion`
+- reseed job state (`running`, `pending`, `lastCheckAt`)
+- bounded `steeringHistory[]`
 
 ---
 
-## 4) pi extension integration points
+## 5) Integration points
 
-- `session_start`: load state/seed
-- `agent_end` or `turn_end`: compute suggestion
-- `ctx.ui.setEditorText(...)` for initial MVP prefill workflow
-- later: custom editor ghost text with explicit accept key behavior
-
----
-
-## 5) Evaluation loop (future)
-
-Track lightweight metrics:
-- suggestion accepted / edited / ignored
-- edit distance from suggestion to submitted prompt
-- latency and token usage
-
-Use replay-based eval harness to improve heuristics and prompts over time.
+- `session_start`: load state; trigger async staleness check/reseed if needed
+- `agent_end`: stale check + suggestion generation
+- user submit hook (or nearest equivalent): steering classification/persistence
+- `/autoprompter reseed`: manual async reseed trigger

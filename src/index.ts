@@ -1,22 +1,27 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import { createAppComposition } from "./composition/root.js";
 
 /**
- * pi-autoprompter (MVP scaffold)
+ * pi-autoprompter
  *
- * Planned behavior:
- * - Load or compute intent seed
- * - After each assistant turn, generate next-prompt suggestion
- * - Surface suggestion in editor as prefill (later: ghost + tab accept)
+ * Architecture scaffold only.
+ *
+ * Implementations for orchestration/services/adapters are intentionally pending.
  */
 export default function autoprompter(pi: ExtensionAPI) {
 	pi.on("session_start", async (_event, ctx) => {
-		ctx.ui.notify("pi-autoprompter loaded (scaffold)", "info");
+		try {
+			await createAppComposition();
+			ctx.ui.notify("pi-autoprompter architecture scaffold loaded", "info");
+		} catch (error) {
+			ctx.ui.notify(`pi-autoprompter scaffold failed to initialize: ${String(error)}`, "error");
+		}
 	});
 
 	pi.registerCommand("autoprompter", {
-		description: "autoprompter controls (scaffold)",
+		description: "autoprompter controls (architecture scaffold)",
 		handler: async (_args, ctx) => {
-			ctx.ui.notify("autoprompter scaffold ready. Next: seeding + suggestion pipeline.", "info");
+			ctx.ui.notify("Architecture scaffold is in place. Implementations are not wired yet.", "info");
 		},
 	});
 }
