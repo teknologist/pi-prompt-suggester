@@ -1,0 +1,17 @@
+{
+  "name": "pi-autoprompter",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Intent-aware next-prompt suggestion extension for pi",
+  "main": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@mariozechner/pi-coding-agent": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  }
+}
