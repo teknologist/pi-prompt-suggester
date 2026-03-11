@@ -38,3 +38,43 @@ Implemented end-to-end:
 - [`docs/architecture-decisions.md`](./docs/architecture-decisions.md)
 - [`docs/roadmap.md`](./docs/roadmap.md)
 - [`config/prompt-suggester.config.json`](./config/prompt-suggester.config.json) ← single source of truth for the base config
+
+## Usage
+
+### Load the extension
+Use one of:
+- project-local extension file in `.pi/extensions/` that re-exports `src/index.ts`
+- direct load for testing: `pi -e ./src/index.ts`
+
+### Main command
+All controls are under `/suggester`.
+
+- `/suggester` or `/suggester status` — current seed/status, model/thinking overrides, usage summary
+- `/suggester reseed` — trigger async reseed
+- `/suggester clear` — clear shown suggestion
+- `/suggester model [show|set|clear] <seeder|suggester> [provider/model]`
+- `/suggester thinking [show|set|clear] <seeder|suggester> [minimal|low|medium|high|xhigh]`
+- `/suggester seed-trace [limit]` — show latest seeder run trace from persistent logs
+
+### Config
+Base config:
+- `config/prompt-suggester.config.json`
+
+Optional overrides:
+- user: `~/.pi/suggester/config.json`
+- project: `.pi/suggester/config.json`
+
+Merge order:
+1. base config (repo file)
+2. user override
+3. project override
+
+### Runtime artifacts
+- seed: `.pi/suggester/seed.json`
+- logs: `.pi/suggester/logs/events.ndjson`
+
+### Behavior summary
+- Suggestion generation runs on `agent_end`
+- Error turns can fast-path to `continue` (configurable)
+- Aborted turns are model-suggested with abort context
+- Suggestions are ghosted in editor when safe; otherwise shown below editor
