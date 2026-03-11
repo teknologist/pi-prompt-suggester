@@ -92,6 +92,7 @@ All controls are under `/suggester`.
 - `/suggester model [show|set|clear] <seeder|suggester> [provider/model|session-default]`
 - `/suggester thinking [show|set|clear] <seeder|suggester> [minimal|low|medium|high|xhigh|session-default]`
 - `/suggester config [show|set [project|user] <path> <value>|reset [project|user|all]]` — inspect, set, or reset overrides
+- `/suggesterSettings` — interactive TUI settings menu for common suggester options
 - `/suggester seed-trace [limit]` — show latest seeder run trace from persistent logs
 
 ### Reject + hint commands
@@ -118,6 +119,7 @@ Notes:
 - `/suggester model ...` and `/suggester thinking ...` edit project override (`.pi/suggester/config.json`) and apply immediately (no extension reload).
 - `/suggester config set [project|user] <path> <value>` writes to the selected override file and applies immediately.
 - `/suggester config set suggestion.maxSuggestionChars 200` updates prompt length in project override.
+- `/suggesterSettings` provides an interactive top-level TUI menu so users do not need to remember the config commands.
 - `/suggester config reset [project|user|all]` deletes override files so behavior returns to defaults.
 
 ### Runtime artifacts

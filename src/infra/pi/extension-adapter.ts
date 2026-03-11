@@ -21,6 +21,7 @@ export interface ExtensionWiring {
 	onModelCommand: (args: string, ctx: ExtensionCommandContext) => Promise<void>;
 	onThinkingCommand: (args: string, ctx: ExtensionCommandContext) => Promise<void>;
 	onConfigCommand: (args: string, ctx: ExtensionCommandContext) => Promise<void>;
+	onSettingsUiCommand: (ctx: ExtensionCommandContext) => Promise<void>;
 	onSeedTraceCommand: (args: string, ctx: ExtensionCommandContext) => Promise<void>;
 	onHintSuggestCommand: (ctx: ExtensionCommandContext) => Promise<void>;
 	onQuoteSuggestCommand: (ctx: ExtensionCommandContext) => Promise<void>;
@@ -132,6 +133,13 @@ export class PiExtensionAdapter {
 			description: "Reject current suggestion with hint and include rejected text",
 			handler: async (_args, ctx) => {
 				await this.wiring.onQuoteSuggestCommand(ctx);
+			},
+		});
+
+		this.pi.registerCommand("suggesterSettings", {
+			description: "Interactive suggester settings menu",
+			handler: async (_args, ctx) => {
+				await this.wiring.onSettingsUiCommand(ctx);
 			},
 		});
 

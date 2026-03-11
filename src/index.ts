@@ -7,6 +7,7 @@ import {
 	handleConfigCommand,
 	handleModelCommand,
 	handleSeedTraceCommand,
+	handleSettingsUiCommand,
 	handleThinkingCommand,
 	renderStatus,
 } from "./infra/pi/command-handlers.js";
@@ -180,6 +181,10 @@ export default function suggester(pi: ExtensionAPI) {
 		onConfigCommand: async (args, ctx) => {
 			const composition = await setRuntimeContext(ctx);
 			await handleConfigCommand(args, ctx, composition);
+		},
+		onSettingsUiCommand: async (ctx) => {
+			const composition = await setRuntimeContext(ctx);
+			await handleSettingsUiCommand(ctx, composition);
 		},
 		onSeedTraceCommand: async (args, ctx) => {
 			const composition = await setRuntimeContext(ctx);

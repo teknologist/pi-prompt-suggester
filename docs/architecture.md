@@ -114,6 +114,7 @@ Inspection:
 - `/suggester model [show|set|clear] ...` (writes project override `.pi/suggester/config.json`)
 - `/suggester thinking [show|set|clear] ...` (writes project override `.pi/suggester/config.json`)
 - `/suggester config [show|set [project|user] <path> <value>|reset [project|user|all]]`
+- `/suggesterSettings` (interactive TUI settings menu)
 - `/suggester seed-trace [limit]`
 - `/hint-suggest` (reject + hint)
 - `/quote-suggest` (reject + hint + rejected text)
