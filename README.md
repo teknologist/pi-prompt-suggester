@@ -59,7 +59,7 @@ pi install -l npm:@guwidoe/pi-prompt-suggester
 Pin a specific version if needed:
 
 ```bash
-pi install npm:@guwidoe/pi-prompt-suggester@0.1.9
+pi install npm:@guwidoe/pi-prompt-suggester@0.1.10
 ```
 
 After install, restart `pi` or run `/reload`.
@@ -71,7 +71,7 @@ Add to `packages` in `~/.pi/agent/settings.json` (global) or `.pi/settings.json`
 ```json
 {
   "packages": [
-    "npm:@guwidoe/pi-prompt-suggester@0.1.9"
+    "npm:@guwidoe/pi-prompt-suggester@0.1.10"
   ]
 }
 ```
