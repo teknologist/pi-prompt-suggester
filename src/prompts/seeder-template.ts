@@ -117,3 +117,55 @@ ${historyText}
 
 Decide the next best tool call, or return type=final only when enough evidence has been gathered.`;
 }
+
+export function renderForcedSeederFinalPrompt(input: SeederPromptInput): string {
+	const previousSeedSummary = input.previousSeed
+		? JSON.stringify(
+				{
+					projectIntentSummary: input.previousSeed.projectIntentSummary,
+					objectivesSummary: input.previousSeed.objectivesSummary,
+					constraintsSummary: input.previousSeed.constraintsSummary,
+					principlesGuidelinesSummary: input.previousSeed.principlesGuidelinesSummary,
+					implementationStatusSummary: input.previousSeed.implementationStatusSummary,
+					topObjectives: input.previousSeed.topObjectives,
+					constraints: input.previousSeed.constraints,
+					keyFiles: input.previousSeed.keyFiles.map((file) => ({
+						path: file.path,
+						category: file.category,
+						whyImportant: file.whyImportant,
+					})),
+					categoryFindings: input.previousSeed.categoryFindings,
+				},
+				null,
+				2,
+			)
+		: "none";
+
+	const historyText = input.history.length === 0
+		? "(none yet)"
+		: input.history
+				.map((entry, index) => {
+					return `Step ${index + 1} model response:\n${entry.modelResponse}\n\nStep ${index + 1} tool result:\n${entry.toolResult ?? "(none)"}`;
+				})
+				.join("\n\n");
+
+	return `Repository root: ${input.cwd}
+Reseed reason: ${input.reseedTrigger.reason}
+Changed files: ${input.reseedTrigger.changedFiles.join(", ") || "(none)"}
+Git diff summary: ${input.reseedTrigger.gitDiffSummary ?? "(none)"}
+Forced final synthesis after reaching normal exploration limit of ${input.maxSteps} steps.
+
+Previous seed summary:
+${previousSeedSummary}
+
+Exploration history:
+${historyText}
+
+Tool use is now DISABLED.
+You MUST return exactly one STRICT JSON object with type="final".
+Do NOT return type="tool".
+Do NOT ask for more reads.
+Use only the evidence already present in the exploration history and previous seed summary.
+If evidence is incomplete, state that explicitly in categoryFindings and openQuestions.
+Return the best complete final seed you can from the evidence already gathered.`;
+}

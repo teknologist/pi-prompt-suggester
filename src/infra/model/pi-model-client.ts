@@ -15,7 +15,7 @@ import {
 	type SeedDraft,
 	type SeedKeyFileCategory,
 } from "../../domain/seed.js";
-import { renderSeederSystemPrompt, renderSeederUserPrompt } from "../../prompts/seeder-template.js";
+import { renderForcedSeederFinalPrompt, renderSeederSystemPrompt, renderSeederUserPrompt } from "../../prompts/seeder-template.js";
 import { renderSuggestionPrompt } from "../../prompts/suggestion-template.js";
 
 const execFileAsync = promisify(execFile);
@@ -282,6 +282,14 @@ function parseSeederResponse(text: string): SeederModelResponse {
 	throw new Error(`Invalid seeder response type: ${type || "(empty)"}`);
 }
 
+function parseSeederFinalResponse(text: string): Record<string, unknown> {
+	const response = parseSeederResponse(text);
+	if (response.type !== "final") {
+		throw new Error(`Forced seeder final synthesis returned type=${response.type} instead of type=final`);
+	}
+	return response.seed;
+}
+
 function globToRegExp(glob: string): RegExp {
 	const escaped = glob
 		.replace(/[.+^${}()|[\]\\]/g, "\\$&")
@@ -419,13 +427,47 @@ export class PiModelClient implements ModelClient {
 				});
 			}
 
-			this.logger?.error("seeder.run.exhausted", {
+			this.logger?.warn("seeder.run.max_steps_reached", {
 				runId,
 				maxSteps,
 				tokens: usage.totalTokens,
 				cost: usage.costTotal,
 			});
-			throw new SeederRunError("Seeder exceeded max exploration steps without returning final seed", usage);
+
+			const forcedPrompt = renderForcedSeederFinalPrompt({
+				reseedTrigger: input.reseedTrigger,
+				previousSeed: input.previousSeed,
+				cwd: this.cwd,
+				step: maxSteps,
+				maxSteps,
+				history,
+			});
+			const forcedResponseText = await this.completePrompt(forcedPrompt, systemPrompt, input.settings);
+			usage = accumulateUsage(usage, forcedResponseText.usage);
+			const forcedDraft = coerceSeedDraft(parseSeederFinalResponse(forcedResponseText.text));
+			if (!forcedDraft.projectIntentSummary) throw new Error("Seeder final response missing projectIntentSummary");
+			if (!forcedDraft.objectivesSummary) throw new Error("Seeder final response missing objectivesSummary");
+			if (!forcedDraft.constraintsSummary) throw new Error("Seeder final response missing constraintsSummary");
+			if (!forcedDraft.principlesGuidelinesSummary) throw new Error("Seeder final response missing principlesGuidelinesSummary");
+			if (!forcedDraft.implementationStatusSummary) throw new Error("Seeder final response missing implementationStatusSummary");
+			if (forcedDraft.keyFiles.length === 0) throw new Error("Seeder final response produced no keyFiles");
+			const forcedValidation = validateSeedCoverage(forcedDraft);
+			if (!forcedValidation.ok) {
+				throw new Error(`Forced seeder final synthesis failed validation: ${forcedValidation.reason}`);
+			}
+			this.logger?.info("seeder.run.completed", {
+				runId,
+				step: maxSteps + 1,
+				keyFiles: forcedDraft.keyFiles.map((file) => file.path),
+				categoryFindings: forcedDraft.categoryFindings,
+				tokens: usage.totalTokens,
+				cost: usage.costTotal,
+				forcedFinalSynthesis: true,
+			});
+			return {
+				seed: forcedDraft,
+				usage,
+			};
 		} catch (error) {
 			if (error instanceof SeederRunError) throw error;
 			throw new SeederRunError((error as Error).message, usage);
