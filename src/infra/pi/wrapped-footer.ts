@@ -105,7 +105,7 @@ function buildWrappedStatusLines(ctx: ExtensionContext, footerData: ReadonlyFoot
 
 	const statuses = Array.from(footerData.getExtensionStatuses().entries())
 		.map(([key, text]) => ({ key, text: sanitizeStatusText(text) }))
-		.filter((item) => item.text.length > 0 && item.key !== "suggester-events")
+		.filter((item) => item.text.length > 0)
 		.sort((a, b) => {
 			const pa = priority(a.key);
 			const pb = priority(b.key);

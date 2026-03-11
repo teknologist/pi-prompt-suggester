@@ -68,15 +68,82 @@ function extractText(content: unknown): string {
 		.trim();
 }
 
+function tryParseObjectJson(text: string): Record<string, unknown> | undefined {
+	try {
+		const parsed = JSON.parse(text);
+		if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+			return parsed as Record<string, unknown>;
+		}
+		return undefined;
+	} catch {
+		return undefined;
+	}
+}
+
+function extractBalancedObjectJsonCandidates(text: string): string[] {
+	const candidates: string[] = [];
+	let inString = false;
+	let escaped = false;
+	let depth = 0;
+	let start = -1;
+
+	for (let i = 0; i < text.length; i += 1) {
+		const ch = text[i];
+		if (inString) {
+			if (escaped) {
+				escaped = false;
+				continue;
+			}
+			if (ch === "\\") {
+				escaped = true;
+				continue;
+			}
+			if (ch === '"') {
+				inString = false;
+			}
+			continue;
+		}
+
+		if (ch === '"') {
+			inString = true;
+			continue;
+		}
+		if (ch === "{") {
+			if (depth === 0) start = i;
+			depth += 1;
+			continue;
+		}
+		if (ch === "}") {
+			if (depth > 0) depth -= 1;
+			if (depth === 0 && start >= 0) {
+				candidates.push(text.slice(start, i + 1));
+				start = -1;
+			}
+		}
+	}
+
+	return candidates;
+}
+
 function parseJsonObject(text: string): Record<string, unknown> {
 	const trimmed = text.trim();
-	try {
-		return JSON.parse(trimmed) as Record<string, unknown>;
-	} catch {
-		const match = trimmed.match(/\{[\s\S]*\}/);
-		if (!match) throw new Error("Model did not return JSON");
-		return JSON.parse(match[0]) as Record<string, unknown>;
+	const direct = tryParseObjectJson(trimmed);
+	if (direct) return direct;
+
+	const fencedMatches = trimmed.matchAll(/```(?:json)?\s*([\s\S]*?)```/gi);
+	for (const match of fencedMatches) {
+		const candidate = match[1]?.trim();
+		if (!candidate) continue;
+		const parsed = tryParseObjectJson(candidate);
+		if (parsed) return parsed;
 	}
+
+	for (const candidate of extractBalancedObjectJsonCandidates(trimmed)) {
+		const parsed = tryParseObjectJson(candidate);
+		if (parsed) return parsed;
+	}
+
+	throw new Error("Model did not return parseable JSON object");
 }
 
 function coerceStringArray(value: unknown): string[] {

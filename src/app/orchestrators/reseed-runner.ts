@@ -166,14 +166,30 @@ export class ReseedRunner {
 	private async resolveKeyFiles(
 		candidateKeyFiles: Array<{ path: string; whyImportant: string; category: SeedArtifact["keyFiles"][number]["category"] }>,
 	): Promise<SeedArtifact["keyFiles"]> {
+		const normalizeToRepoRelative = (inputPath: string): string | undefined => {
+			const trimmed = inputPath.trim();
+			if (!trimmed) return undefined;
+			const absolute = path.isAbsolute(trimmed) ? path.normalize(trimmed) : path.resolve(this.cwd, trimmed);
+			if (absolute !== this.cwd && !absolute.startsWith(`${this.cwd}${path.sep}`)) return undefined;
+			const relative = path.relative(this.cwd, absolute);
+			if (!relative || relative === ".") return undefined;
+			if (relative.startsWith(`..${path.sep}`) || relative === "..") return undefined;
+			return path.normalize(relative);
+		};
+
 		const uniqueCandidates = Array.from(
 			new Map(
 				candidateKeyFiles
-					.map((file) => ({
-						path: path.normalize(file.path),
-						whyImportant: file.whyImportant.trim() || "High-signal repository file",
-						category: file.category,
-					}))
+					.map((file) => {
+						const normalizedPath = normalizeToRepoRelative(file.path);
+						if (!normalizedPath) return undefined;
+						return {
+							path: normalizedPath,
+							whyImportant: file.whyImportant.trim() || "High-signal repository file",
+							category: file.category,
+						};
+					})
+					.filter((file): file is { path: string; whyImportant: string; category: SeedArtifact["keyFiles"][number]["category"] } => Boolean(file))
 					.map((file) => [file.path, file]),
 			).values(),
 		);
@@ -185,7 +201,7 @@ export class ReseedRunner {
 
 		const hashed: SeedArtifact["keyFiles"] = [];
 		for (const file of chosen) {
-			const absolute = path.join(this.cwd, file.path);
+			const absolute = path.resolve(this.cwd, file.path);
 			if (!(await fileExists(absolute))) continue;
 			hashed.push({
 				path: file.path,

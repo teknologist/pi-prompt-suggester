@@ -1,5 +1,6 @@
 import type { ExtensionAPI, ExtensionCommandContext, ExtensionContext, InputEvent } from "@mariozechner/pi-coding-agent";
 import { createAppComposition, type AppComposition } from "./composition/root.js";
+import { buildLatestHistoricalTurnContext } from "./app/services/conversation-signals.js";
 import { PiExtensionAdapter } from "./infra/pi/extension-adapter.js";
 import { GhostSuggestionEditor } from "./infra/pi/ghost-suggestion-editor.js";
 import {
@@ -51,6 +52,30 @@ async function handleHintBasedRegeneration(
 export default function suggester(pi: ExtensionAPI) {
 	let compositionPromise: Promise<AppComposition> | undefined;
 
+	function installGhostEditor(ctx: ExtensionContext, composition: AppComposition): void {
+		if (!ctx.hasUI) return;
+		ctx.ui.setEditorComponent((tui, theme, kb) =>
+			new GhostSuggestionEditor(
+				tui,
+				theme,
+				kb,
+				() => composition.runtimeRef.getSuggestion(),
+				() => composition.runtimeRef.getSuggestionRevision(),
+			),
+		);
+	}
+
+	function scheduleGhostEditorReassertion(ctx: ExtensionContext, composition: AppComposition): void {
+		const delaysMs = [50, 250, 1000, 3000, 8000];
+		for (const delay of delaysMs) {
+			setTimeout(() => {
+				const active = composition.runtimeRef.getContext();
+				if (active !== ctx) return;
+				installGhostEditor(ctx, composition);
+			}, delay);
+		}
+	}
+
 	async function getComposition(): Promise<AppComposition> {
 		if (!compositionPromise) {
 			compositionPromise = createAppComposition(pi).catch((error) => {
@@ -70,24 +95,43 @@ export default function suggester(pi: ExtensionAPI) {
 	const adapter = new PiExtensionAdapter(pi, {
 		onSessionStart: async (ctx) => {
 			const composition = await setRuntimeContext(ctx);
-			composition.runtimeRef.bumpEpoch();
+			const generationId = composition.runtimeRef.bumpEpoch();
 			if (ctx.hasUI) {
 				installWrappedFooter(ctx);
-				ctx.ui.setEditorComponent((tui, theme, kb) =>
-					new GhostSuggestionEditor(
-						tui,
-						theme,
-						kb,
-						() => composition.runtimeRef.getSuggestion(),
-						() => composition.runtimeRef.getSuggestionRevision(),
-					),
-				);
+				installGhostEditor(ctx, composition);
+				scheduleGhostEditorReassertion(ctx, composition);
 			}
 			await composition.orchestrators.sessionStart.handle();
+
+			const sourceLeafId = ctx.sessionManager.getLeafId() ?? `turn-${Date.now()}`;
+			if (composition.runtimeRef.getLastBootstrappedLeafId() === sourceLeafId) return;
+
+			const state = await composition.stores.stateStore.load();
+			if (state.lastSuggestion?.turnId === sourceLeafId) {
+				composition.runtimeRef.markBootstrappedLeafId(sourceLeafId);
+				return;
+			}
+
+			const branchEntries = ctx.sessionManager.getBranch();
+			const branchMessages = branchEntries
+				.filter((entry): entry is typeof branchEntries[number] & { type: "message" } => entry.type === "message")
+				.map((entry) => entry.message);
+			const historicalTurn = buildLatestHistoricalTurnContext({
+				sourceLeafId,
+				branchMessages,
+			});
+			if (!historicalTurn) return;
+
+			composition.runtimeRef.markBootstrappedLeafId(sourceLeafId);
+			composition.runtimeRef.setLastTurnContext(historicalTurn);
+			await composition.orchestrators.agentEnd.handle(historicalTurn, generationId);
 		},
 		onAgentEnd: async (turn, ctx) => {
 			if (!turn) return;
 			const composition = await setRuntimeContext(ctx);
+			if (ctx.hasUI) {
+				installGhostEditor(ctx, composition);
+			}
 			composition.runtimeRef.setLastTurnContext(turn);
 			const generationId = composition.runtimeRef.bumpEpoch();
 			await composition.orchestrators.agentEnd.handle(turn, generationId);

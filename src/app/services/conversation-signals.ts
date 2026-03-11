@@ -94,3 +94,39 @@ export function buildTurnContext(params: {
 export function extractUserText(message: AgentMessage): string {
 	return textFromContent((message as { content?: unknown }).content ?? "");
 }
+
+export function buildLatestHistoricalTurnContext(params: {
+	sourceLeafId: string;
+	branchMessages: AgentMessage[];
+}): TurnContext | null {
+	let lastAssistantIndex = -1;
+	for (let i = params.branchMessages.length - 1; i >= 0; i -= 1) {
+		if (params.branchMessages[i]?.role === "assistant") {
+			lastAssistantIndex = i;
+			break;
+		}
+	}
+	if (lastAssistantIndex < 0) return null;
+
+	let startIndex = 0;
+	for (let i = lastAssistantIndex - 1; i >= 0; i -= 1) {
+		if (params.branchMessages[i]?.role === "user") {
+			startIndex = i + 1;
+			break;
+		}
+	}
+
+	const latestAssistant = params.branchMessages[lastAssistantIndex] as { timestamp?: unknown } | undefined;
+	const occurredAt =
+		typeof latestAssistant?.timestamp === "number"
+			? new Date(latestAssistant.timestamp).toISOString()
+			: new Date().toISOString();
+
+	return buildTurnContext({
+		turnId: params.sourceLeafId,
+		sourceLeafId: params.sourceLeafId,
+		messagesFromPrompt: params.branchMessages.slice(startIndex),
+		branchMessages: params.branchMessages,
+		occurredAt,
+	});
+}

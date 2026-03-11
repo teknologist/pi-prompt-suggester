@@ -3,7 +3,9 @@ import { Key, matchesKey, truncateToWidth, visibleWidth, wrapTextWithAnsi } from
 
 const GHOST_COLOR = "\x1b[38;5;244m";
 const RESET = "\x1b[0m";
-const END_CURSOR = /\x1b\[7m \x1b\[0m/;
+// Cursor rendering varies across themes/terminal modes (e.g. 7m, 5;7m, etc.).
+// Match any ANSI-styled single-space cursor block instead of one exact sequence.
+const END_CURSOR = /(?:\x1b\[[0-9;]*m \x1b\[[0-9;]*m|█|▌|▋|▉|▓)/;
 
 interface GhostState {
 	text: string;

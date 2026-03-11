@@ -7,6 +7,7 @@ export class RuntimeRef {
 	private currentSuggestion: string | undefined;
 	private suggestionRevision = 0;
 	private lastTurnContext: TurnContext | undefined;
+	private lastBootstrappedLeafId: string | undefined;
 
 	public setContext(ctx: ExtensionContext): void {
 		this.currentContext = ctx;
@@ -44,5 +45,13 @@ export class RuntimeRef {
 
 	public getLastTurnContext(): TurnContext | undefined {
 		return this.lastTurnContext;
+	}
+
+	public getLastBootstrappedLeafId(): string | undefined {
+		return this.lastBootstrappedLeafId;
+	}
+
+	public markBootstrappedLeafId(leafId: string): void {
+		this.lastBootstrappedLeafId = leafId;
 	}
 }
