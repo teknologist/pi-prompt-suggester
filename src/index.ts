@@ -13,8 +13,9 @@ function renderStatus(seed: Awaited<ReturnType<AppComposition["stores"]["seedSto
 	return [
 		"Autoprompter status",
 		`- seed: ${seed ? `present (${seed.generatedAt})` : "missing"}`,
-		`- key files: ${seed?.keyFiles.map((file) => file.path).join(", ") || "(none)"}`,
+		`- key files: ${seed?.keyFiles.map((file) => `${file.path} [${file.category}]`).join(", ") || "(none)"}`,
 		`- last reseed reason: ${seed?.lastReseedReason ?? "(none)"}`,
+		`- implementation status: ${seed?.implementationStatusSummary?.slice(0, 140) ?? "(none)"}`,
 		`- last suggestion: ${state.lastSuggestion?.text ?? "(none)"}`,
 		`- steering history: exact=${steeringSummary.exact}, edited=${steeringSummary.edited}, changed=${steeringSummary.changed}`,
 	].join("\n");

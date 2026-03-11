@@ -4,7 +4,6 @@ import type { SuggestionPromptContext } from "../services/prompt-context-builder
 export interface ModelClient {
 	generateSeed(input: {
 		reseedTrigger: ReseedTrigger;
-		repositoryContext: string;
 		previousSeed: SeedArtifact | null;
 	}): Promise<SeedDraft>;
 

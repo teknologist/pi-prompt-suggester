@@ -15,7 +15,6 @@ import type { SeedStore } from "../ports/seed-store.js";
 import type { ModelClient } from "../ports/model-client.js";
 import type { TaskQueue } from "../ports/task-queue.js";
 import type { VcsClient } from "../ports/vcs-client.js";
-import { RepositoryContextBuilder } from "../services/repository-context-builder.js";
 import { computeConfigFingerprint } from "../services/seed-metadata.js";
 
 async function fileExists(filePath: string): Promise<boolean> {
@@ -70,14 +69,11 @@ export class ReseedRunner {
 
 				try {
 					const previousSeed = await this.deps.seedStore.load();
-					const contextBuilder = new RepositoryContextBuilder(this.cwd, this.deps.config);
-					const context = await contextBuilder.build(current, previousSeed);
 					const seedDraft = await this.deps.modelClient.generateSeed({
 						reseedTrigger: current,
-						repositoryContext: context.repositoryContext,
 						previousSeed,
 					});
-					const seed = await this.finalizeSeed(seedDraft, current, context.defaultKeyFiles, context.discoveredFiles);
+					const seed = await this.finalizeSeed(seedDraft, current);
 					await this.deps.seedStore.save(seed);
 					this.deps.logger.info("reseed.completed", {
 						reason: current.reason,
@@ -106,11 +102,9 @@ export class ReseedRunner {
 	private async finalizeSeed(
 		seedDraft: Awaited<ReturnType<ModelClient["generateSeed"]>>,
 		trigger: ReseedTrigger,
-		defaultKeyFiles: string[],
-		discoveredFiles: string[],
 	): Promise<SeedArtifact> {
 		const headCommit = await this.deps.vcs.getHeadCommit();
-		const keyFiles = await this.resolveKeyFiles(seedDraft.keyFiles, defaultKeyFiles, discoveredFiles);
+		const keyFiles = await this.resolveKeyFiles(seedDraft.keyFiles);
 		return {
 			seedVersion: CURRENT_SEED_VERSION,
 			generatedAt: new Date().toISOString(),
@@ -121,9 +115,14 @@ export class ReseedRunner {
 			configFingerprint: this.configFingerprint,
 			modelId: undefined,
 			projectIntentSummary: seedDraft.projectIntentSummary,
+			objectivesSummary: seedDraft.objectivesSummary,
+			constraintsSummary: seedDraft.constraintsSummary,
+			principlesGuidelinesSummary: seedDraft.principlesGuidelinesSummary,
+			implementationStatusSummary: seedDraft.implementationStatusSummary,
 			topObjectives: seedDraft.topObjectives,
 			constraints: seedDraft.constraints,
 			keyFiles,
+			categoryFindings: seedDraft.categoryFindings,
 			openQuestions: seedDraft.openQuestions,
 			reseedNotes: seedDraft.reseedNotes,
 			lastReseedReason: trigger.reason,
@@ -132,28 +131,25 @@ export class ReseedRunner {
 	}
 
 	private async resolveKeyFiles(
-		candidateKeyFiles: Array<{ path: string; whyImportant: string }>,
-		defaultKeyFiles: string[],
-		discoveredFiles: string[],
+		candidateKeyFiles: Array<{ path: string; whyImportant: string; category: SeedArtifact["keyFiles"][number]["category"] }>,
 	): Promise<SeedArtifact["keyFiles"]> {
-		const discovered = new Set(discoveredFiles.map((file) => path.normalize(file)));
 		const uniqueCandidates = Array.from(
 			new Map(
 				candidateKeyFiles
 					.map((file) => ({
 						path: path.normalize(file.path),
 						whyImportant: file.whyImportant.trim() || "High-signal repository file",
+						category: file.category,
 					}))
-					.filter((file) => discovered.has(file.path))
 					.map((file) => [file.path, file]),
 			).values(),
 		);
 
-		const fallback = defaultKeyFiles
-			.filter((file) => discovered.has(file))
-			.slice(0, 12)
-			.map((file) => ({ path: file, whyImportant: "Configured high-signal file" }));
-		const chosen = uniqueCandidates.length > 0 ? uniqueCandidates.slice(0, 12) : fallback;
+		const chosen = uniqueCandidates.slice(0, 32);
+		if (chosen.length === 0) {
+			throw new Error("Seeder returned no keyFiles. Agentic seeding requires explicit key file selection.");
+		}
+
 		const hashed: SeedArtifact["keyFiles"] = [];
 		for (const file of chosen) {
 			const absolute = path.join(this.cwd, file.path);
@@ -162,7 +158,11 @@ export class ReseedRunner {
 				path: file.path,
 				hash: await this.deps.fileHash.hashFile(absolute),
 				whyImportant: file.whyImportant,
+				category: file.category,
 			});
+		}
+		if (hashed.length === 0) {
+			throw new Error("Seeder returned keyFiles, but none could be resolved on disk.");
 		}
 		return hashed;
 	}

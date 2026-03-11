@@ -49,7 +49,7 @@ export async function createAppComposition(pi: ExtensionAPI, cwd: string = proce
 	const fileHash = new Sha256FileHash();
 	const seedStore = new JsonSeedStore(path.join(cwd, ".pi", "autoprompter", "seed.json"));
 	const stateStore = new SessionStateStore(pi, () => runtimeRef.getContext()?.sessionManager);
-	const modelClient = new PiModelClient(runtimeRef);
+	const modelClient = new PiModelClient(runtimeRef, cwd);
 	const clock = new SystemClock();
 	const suggestionSink = new PiSuggestionSink({
 		getContext: () => runtimeRef.getContext(),

@@ -18,13 +18,19 @@ export function renderSuggestionPrompt(context: SuggestionPromptContext): string
 		? JSON.stringify(
 				{
 					projectIntentSummary: context.intentSeed.projectIntentSummary,
+					objectivesSummary: context.intentSeed.objectivesSummary,
+					constraintsSummary: context.intentSeed.constraintsSummary,
+					principlesGuidelinesSummary: context.intentSeed.principlesGuidelinesSummary,
+					implementationStatusSummary: context.intentSeed.implementationStatusSummary,
 					topObjectives: context.intentSeed.topObjectives,
 					constraints: context.intentSeed.constraints,
 					openQuestions: context.intentSeed.openQuestions,
 					keyFiles: context.intentSeed.keyFiles.map((file) => ({
 						path: file.path,
+						category: file.category,
 						whyImportant: file.whyImportant,
 					})),
+					categoryFindings: context.intentSeed.categoryFindings,
 				},
 				null,
 				2,
