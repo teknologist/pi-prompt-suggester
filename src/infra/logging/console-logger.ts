@@ -65,17 +65,18 @@ export class ConsoleLogger implements Logger {
 		if (LEVEL_ORDER[level] < LEVEL_ORDER[this.level]) return;
 		const payload = meta && Object.keys(meta).length > 0 ? ` ${JSON.stringify(meta)}` : "";
 		const line = truncate(`[suggester ${level}] ${message}${payload}`, 220);
+		const statusLine = truncate(`[suggester ${level}] ${message}`, 120);
 		const ctx = this.options.getContext?.();
 		if (ctx?.hasUI) {
 			const theme = ctx.ui.theme;
 			const colorized =
 				level === "error"
-					? theme.fg("error", line)
+					? theme.fg("error", statusLine)
 					: level === "warn"
-						? theme.fg("warning", line)
+						? theme.fg("warning", statusLine)
 						: level === "debug"
-							? theme.fg("dim", line)
-							: theme.fg("muted", line);
+							? theme.fg("dim", statusLine)
+							: theme.fg("muted", statusLine);
 			ctx.ui.setStatus(this.statusKey, colorized);
 			return;
 		}

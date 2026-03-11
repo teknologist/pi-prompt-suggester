@@ -95,24 +95,38 @@ function buildStatsLine(ctx: ExtensionContext, footerData: ReadonlyFooterDataPro
 }
 
 function buildWrappedStatusLines(ctx: ExtensionContext, footerData: ReadonlyFooterDataProvider, width: number): string[] {
+	const priority = (key: string): number => {
+		if (key === "suggester") return 0;
+		if (key === "suggester-usage") return 1;
+		if (key === "suggester-events") return 99;
+		if (key.startsWith("suggester")) return 2;
+		return 10;
+	};
+
 	const statuses = Array.from(footerData.getExtensionStatuses().entries())
 		.map(([key, text]) => ({ key, text: sanitizeStatusText(text) }))
-		.filter((item) => item.text.length > 0)
+		.filter((item) => item.text.length > 0 && item.key !== "suggester-events")
 		.sort((a, b) => {
-			const aSug = a.key.startsWith("suggester") ? 0 : 1;
-			const bSug = b.key.startsWith("suggester") ? 0 : 1;
-			if (aSug !== bSug) return aSug - bSug;
+			const pa = priority(a.key);
+			const pb = priority(b.key);
+			if (pa !== pb) return pa - pb;
 			return a.key.localeCompare(b.key);
 		});
 	if (statuses.length === 0) return [];
 
-	const combined = statuses.map((item) => item.text).join("  ");
-	const wrapped = wrapTextWithAnsi(combined, Math.max(10, width));
 	const maxLines = 3;
-	if (wrapped.length <= maxLines) return wrapped;
-	const kept = wrapped.slice(0, maxLines);
-	kept[maxLines - 1] = truncateToWidth(kept[maxLines - 1], width, ctx.ui.theme.fg("dim", "..."));
-	return kept;
+	const lines: string[] = [];
+	for (const status of statuses) {
+		const wrapped = wrapTextWithAnsi(status.text, Math.max(10, width));
+		for (const line of wrapped) {
+			lines.push(line);
+			if (lines.length === maxLines) {
+				lines[maxLines - 1] = truncateToWidth(lines[maxLines - 1], width, ctx.ui.theme.fg("dim", "..."));
+				return lines;
+			}
+		}
+	}
+	return lines;
 }
 
 export function installWrappedFooter(ctx: ExtensionContext): void {
