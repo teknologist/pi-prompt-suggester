@@ -21,6 +21,8 @@ export interface ExtensionWiring {
 	onModelCommand: (args: string, ctx: ExtensionCommandContext) => Promise<void>;
 	onThinkingCommand: (args: string, ctx: ExtensionCommandContext) => Promise<void>;
 	onSeedTraceCommand: (args: string, ctx: ExtensionCommandContext) => Promise<void>;
+	onHintSuggestCommand: (ctx: ExtensionCommandContext) => Promise<void>;
+	onQuoteSuggestCommand: (ctx: ExtensionCommandContext) => Promise<void>;
 }
 
 async function handleSessionEvent(
@@ -116,6 +118,20 @@ export class PiExtensionAdapter {
 		this.pi.on("input", async (event: InputEvent, ctx) => {
 			await this.wiring.onUserSubmit(event, ctx);
 			return { action: "continue" };
+		});
+
+		this.pi.registerCommand("hint-suggest", {
+			description: "Reject current suggestion, provide a hint, regenerate",
+			handler: async (_args, ctx) => {
+				await this.wiring.onHintSuggestCommand(ctx);
+			},
+		});
+
+		this.pi.registerCommand("quote-suggest", {
+			description: "Reject current suggestion with hint and include rejected text",
+			handler: async (_args, ctx) => {
+				await this.wiring.onQuoteSuggestCommand(ctx);
+			},
 		});
 
 		this.pi.registerCommand("suggester", {

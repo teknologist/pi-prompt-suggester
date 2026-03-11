@@ -17,6 +17,21 @@ function extractState(entries: SessionEntry[]): RuntimeState {
 	}
 	if (!latest) return INITIAL_RUNTIME_STATE;
 	const usage = latest.suggestionUsage ?? INITIAL_RUNTIME_STATE.suggestionUsage;
+	const rejectionHints = Array.isArray(latest.rejectionHints)
+		? latest.rejectionHints
+				.map((entry) => ({
+					id: String(entry.id ?? "").trim(),
+					hint: String(entry.hint ?? "").trim(),
+					includeRejectedSuggestionText: Boolean(entry.includeRejectedSuggestionText),
+					rejectedSuggestionText:
+						typeof entry.rejectedSuggestionText === "string" && entry.rejectedSuggestionText.trim().length > 0
+							? entry.rejectedSuggestionText
+							: undefined,
+					remainingUses: Number(entry.remainingUses ?? 0),
+					createdAt: String(entry.createdAt ?? "").trim() || new Date(0).toISOString(),
+				}))
+				.filter((entry) => entry.id.length > 0 && entry.hint.length > 0 && entry.remainingUses > 0)
+		: [];
 	return {
 		stateVersion: CURRENT_RUNTIME_STATE_VERSION,
 		lastSuggestion: latest.lastSuggestion,
@@ -31,6 +46,7 @@ function extractState(entries: SessionEntry[]): RuntimeState {
 			costTotal: Number(usage.costTotal ?? 0),
 			last: usage.last,
 		},
+		rejectionHints,
 	};
 }
 
@@ -52,6 +68,7 @@ export class SessionStateStore implements StateStore {
 			lastSuggestion: state.lastSuggestion,
 			steeringHistory: state.steeringHistory,
 			suggestionUsage: state.suggestionUsage,
+			rejectionHints: state.rejectionHints,
 		});
 	}
 }

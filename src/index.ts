@@ -274,6 +274,44 @@ async function handleSeedTraceCommand(args: string, pi: ExtensionAPI, compositio
 	);
 }
 
+async function handleHintBasedRegeneration(
+	ctx: ExtensionCommandContext,
+	composition: AppComposition,
+	includeRejectedSuggestionText: boolean,
+): Promise<void> {
+	const turn = composition.runtimeRef.getLastTurnContext();
+	if (!turn) {
+		ctx.ui.notify("No recent turn context available yet. Run after at least one assistant completion.", "warning");
+		return;
+	}
+	const state = await composition.stores.stateStore.load();
+	if (!state.lastSuggestion?.text) {
+		ctx.ui.notify("No active suggestion to reject.", "warning");
+		return;
+	}
+
+	const hint = await ctx.ui.editor(
+		includeRejectedSuggestionText ? "Hint for next suggestion (with rejected text)" : "Hint for next suggestion",
+		"",
+	);
+	if (hint === undefined) {
+		ctx.ui.notify("Hint canceled.", "info");
+		return;
+	}
+	if (!hint.trim()) {
+		ctx.ui.notify("Hint is empty. Nothing changed.", "warning");
+		return;
+	}
+
+	const generationId = composition.runtimeRef.bumpEpoch();
+	await composition.orchestrators.agentEnd.regenerateFromHint({
+		turn,
+		hint,
+		includeRejectedSuggestionText,
+		generationId,
+	});
+}
+
 export default function suggester(pi: ExtensionAPI) {
 	let compositionPromise: Promise<AppComposition> | undefined;
 
@@ -313,6 +351,7 @@ export default function suggester(pi: ExtensionAPI) {
 		onAgentEnd: async (turn, ctx) => {
 			if (!turn) return;
 			const composition = await setRuntimeContext(ctx);
+			composition.runtimeRef.setLastTurnContext(turn);
 			const generationId = composition.runtimeRef.bumpEpoch();
 			await composition.orchestrators.agentEnd.handle(turn, generationId);
 		},
@@ -360,6 +399,14 @@ export default function suggester(pi: ExtensionAPI) {
 			const composition = await setRuntimeContext(ctx);
 			await handleSeedTraceCommand(args, pi, composition);
 			ctx.ui.notify("suggester seed trace sent to chat", "info");
+		},
+		onHintSuggestCommand: async (ctx) => {
+			const composition = await setRuntimeContext(ctx);
+			await handleHintBasedRegeneration(ctx, composition, false);
+		},
+		onQuoteSuggestCommand: async (ctx) => {
+			const composition = await setRuntimeContext(ctx);
+			await handleHintBasedRegeneration(ctx, composition, true);
 		},
 	});
 

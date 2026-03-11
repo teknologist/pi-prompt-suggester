@@ -23,9 +23,9 @@ function isModelSetting(value: unknown): boolean {
 export function validateConfig(config: unknown): config is PromptSuggesterConfig {
 	if (!isObject(config)) return false;
 	if (!isObject(config.seed) || !isObject(config.reseed) || !isObject(config.suggestion)) return false;
-	if (!isObject(config.steering) || !isObject(config.logging) || !isObject(config.inference)) return false;
+	if (!isObject(config.steering) || !isObject(config.logging) || !isObject(config.feedback) || !isObject(config.inference)) return false;
 
-	const { seed, reseed, suggestion, steering, logging, inference } = config;
+	const { seed, reseed, suggestion, steering, logging, feedback, inference } = config;
 	if (!Array.isArray(seed.keyFileGlobs) || !seed.keyFileGlobs.every((value) => typeof value === "string")) return false;
 	if (!isPositiveInteger(seed.maxDiffChars)) return false;
 
@@ -51,6 +51,10 @@ export function validateConfig(config: unknown): config is PromptSuggesterConfig
 	if (typeof acceptedThreshold !== "number" || !isPositiveNumber(acceptedThreshold) || acceptedThreshold > 1) return false;
 	if (!isPositiveInteger(steering.maxAcceptedExamples)) return false;
 	if (!isPositiveInteger(steering.maxChangedExamples)) return false;
+
+	if (!isPositiveInteger(feedback.maxStoredHints)) return false;
+	if (!isPositiveInteger(feedback.hintLifetimeSuggestions)) return false;
+	if (!isPositiveInteger(feedback.maxHintedSuggestionChars)) return false;
 
 	if (!isModelSetting(inference.seederModel)) return false;
 	if (!isModelSetting(inference.suggesterModel)) return false;

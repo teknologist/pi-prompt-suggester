@@ -29,6 +29,7 @@ Implemented end-to-end:
 - persistent observability log in `.pi/suggester/logs/events.ndjson`
 - `/suggester status`, `/suggester reseed`
 - `/suggester model ...`, `/suggester thinking ...`, `/suggester seed-trace [limit]`
+- `/hint-suggest` and `/quote-suggest` for reject+hint regeneration
 
 ## Key files
 
@@ -55,6 +56,10 @@ All controls are under `/suggester`.
 - `/suggester thinking [show|set|clear] <seeder|suggester> [minimal|low|medium|high|xhigh|session-default]`
 - `/suggester seed-trace [limit]` — show latest seeder run trace from persistent logs
 
+### Reject + hint commands
+- `/hint-suggest` — reject current suggestion, provide hint, regenerate
+- `/quote-suggest` — same, but also inject rejected suggestion text
+
 ### Config
 Base config:
 - `config/prompt-suggester.config.json`
@@ -70,6 +75,7 @@ Merge order:
 
 Notes:
 - `inference.* = session-default` means “use current pi session model/thinking”.
+- `feedback.*` controls reject+hint memory and hinted suggestion length.
 - `/suggester model ...` and `/suggester thinking ...` edit `.pi/suggester/config.json` then reload.
 
 ### Runtime artifacts

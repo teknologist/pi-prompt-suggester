@@ -64,6 +64,21 @@ ${context.touchedFiles.length > 0 ? context.touchedFiles.map((file) => `- ${file
 UnresolvedQuestions:
 ${context.unresolvedQuestions.length > 0 ? context.unresolvedQuestions.map((item) => `- ${item}`).join("\n") : "(none)"}
 
+RejectionHints:
+${
+	context.rejectionHints.length > 0
+		? context.rejectionHints
+				.map((hint) =>
+					`- hint: ${JSON.stringify(hint.hint)}${
+						hint.includeRejectedSuggestionText && hint.rejectedSuggestionText
+							? `\n  rejected_suggestion: ${JSON.stringify(hint.rejectedSuggestionText)}`
+							: ""
+					}`,
+				)
+				.join("\n")
+		: "(none)"
+}
+
 IntentSeed:
 ${intentSeed}
 

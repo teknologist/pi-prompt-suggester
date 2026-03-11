@@ -8,6 +8,12 @@ function truncate(value: string, maxChars: number): string {
 	return `${value.slice(0, maxChars)}…`;
 }
 
+export interface SuggestionFeedbackHint {
+	hint: string;
+	includeRejectedSuggestionText: boolean;
+	rejectedSuggestionText?: string;
+}
+
 export interface SuggestionPromptContext {
 	latestAssistantTurn: string;
 	turnStatus: TurnContext["status"];
@@ -19,6 +25,7 @@ export interface SuggestionPromptContext {
 	abortContextNote?: string;
 	recentAccepted: SteeringSlice["recentAccepted"];
 	recentChanged: SteeringSlice["recentChanged"];
+	rejectionHints: SuggestionFeedbackHint[];
 	noSuggestionToken: string;
 	maxSuggestionChars: number;
 }
@@ -26,7 +33,12 @@ export interface SuggestionPromptContext {
 export class PromptContextBuilder {
 	public constructor(private readonly config: PromptSuggesterConfig) {}
 
-	public build(turn: TurnContext, seed: SeedArtifact | null, steering: SteeringSlice): SuggestionPromptContext {
+	public build(
+		turn: TurnContext,
+		seed: SeedArtifact | null,
+		steering: SteeringSlice,
+		rejectionHints: SuggestionFeedbackHint[] = [],
+	): SuggestionPromptContext {
 		return {
 			latestAssistantTurn: truncate(turn.assistantText, this.config.suggestion.maxAssistantTurnChars),
 			turnStatus: turn.status,
@@ -44,6 +56,7 @@ export class PromptContextBuilder {
 				: undefined,
 			recentAccepted: steering.recentAccepted.slice(0, this.config.steering.maxAcceptedExamples),
 			recentChanged: steering.recentChanged.slice(0, this.config.steering.maxChangedExamples),
+			rejectionHints,
 			noSuggestionToken: this.config.suggestion.noSuggestionToken,
 			maxSuggestionChars: this.config.suggestion.maxSuggestionChars,
 		};

@@ -4,7 +4,7 @@ import type { SuggestionResult, TurnContext } from "../../domain/suggestion.js";
 import type { ModelInvocationSettings } from "../ports/model-client.js";
 import type { SteeringSlice } from "../../domain/steering.js";
 import type { ModelClient } from "../ports/model-client.js";
-import type { PromptContextBuilder } from "./prompt-context-builder.js";
+import type { PromptContextBuilder, SuggestionFeedbackHint } from "./prompt-context-builder.js";
 
 function normalizeSuggestion(value: string, maxChars: number): string {
 	const normalizedLineEndings = value.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
@@ -23,6 +23,11 @@ export interface SuggestionEngineDeps {
 	promptContextBuilder: PromptContextBuilder;
 }
 
+export interface SuggestionRequestOptions {
+	feedbackHints?: SuggestionFeedbackHint[];
+	maxSuggestionChars?: number;
+}
+
 export class SuggestionEngine {
 	public constructor(private readonly deps: SuggestionEngineDeps) {}
 
@@ -31,6 +36,7 @@ export class SuggestionEngine {
 		seed: SeedArtifact | null,
 		steering: SteeringSlice,
 		settings?: ModelInvocationSettings,
+		options?: SuggestionRequestOptions,
 	): Promise<SuggestionResult> {
 		if (this.deps.config.suggestion.fastPathContinueOnError && turn.status === "error") {
 			return {
@@ -39,9 +45,12 @@ export class SuggestionEngine {
 			};
 		}
 
-		const context = this.deps.promptContextBuilder.build(turn, seed, steering);
+		const context = this.deps.promptContextBuilder.build(turn, seed, steering, options?.feedbackHints ?? []);
 		const raw = await this.deps.modelClient.generateSuggestion(context, settings);
-		const normalized = normalizeSuggestion(raw.text, this.deps.config.suggestion.maxSuggestionChars);
+		const normalized = normalizeSuggestion(
+			raw.text,
+			options?.maxSuggestionChars ?? this.deps.config.suggestion.maxSuggestionChars,
+		);
 		if (!normalized || normalized === this.deps.config.suggestion.noSuggestionToken) {
 			return {
 				kind: "no_suggestion",

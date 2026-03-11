@@ -111,3 +111,5 @@ Inspection:
 - `/suggester model [show|set|clear] ...` (writes `.pi/suggester/config.json`)
 - `/suggester thinking [show|set|clear] ...` (writes `.pi/suggester/config.json`)
 - `/suggester seed-trace [limit]`
+- `/hint-suggest` (reject + hint)
+- `/quote-suggest` (reject + hint + rejected text)

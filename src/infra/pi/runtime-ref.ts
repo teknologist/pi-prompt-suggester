@@ -1,10 +1,12 @@
 import type { ExtensionContext } from "@mariozechner/pi-coding-agent";
+import type { TurnContext } from "../../domain/suggestion.js";
 
 export class RuntimeRef {
 	private currentContext: ExtensionContext | undefined;
 	private generationEpoch = 0;
 	private currentSuggestion: string | undefined;
 	private suggestionRevision = 0;
+	private lastTurnContext: TurnContext | undefined;
 
 	public setContext(ctx: ExtensionContext): void {
 		this.currentContext = ctx;
@@ -34,5 +36,13 @@ export class RuntimeRef {
 
 	public getSuggestionRevision(): number {
 		return this.suggestionRevision;
+	}
+
+	public setLastTurnContext(turn: TurnContext | undefined): void {
+		this.lastTurnContext = turn;
+	}
+
+	public getLastTurnContext(): TurnContext | undefined {
+		return this.lastTurnContext;
 	}
 }

@@ -23,6 +23,21 @@ export class JsonStateStore implements StateStore {
 
 	private normalize(state: RuntimeState): RuntimeState {
 		const usage = state.suggestionUsage ?? INITIAL_RUNTIME_STATE.suggestionUsage;
+		const rejectionHints = Array.isArray(state.rejectionHints)
+			? state.rejectionHints
+					.map((entry) => ({
+						id: String(entry.id ?? "").trim(),
+						hint: String(entry.hint ?? "").trim(),
+						includeRejectedSuggestionText: Boolean(entry.includeRejectedSuggestionText),
+						rejectedSuggestionText:
+							typeof entry.rejectedSuggestionText === "string" && entry.rejectedSuggestionText.trim().length > 0
+								? entry.rejectedSuggestionText
+								: undefined,
+						remainingUses: Number(entry.remainingUses ?? 0),
+						createdAt: String(entry.createdAt ?? "").trim() || new Date(0).toISOString(),
+					}))
+					.filter((entry) => entry.id.length > 0 && entry.hint.length > 0 && entry.remainingUses > 0)
+			: [];
 		return {
 			stateVersion: CURRENT_RUNTIME_STATE_VERSION,
 			lastSuggestion: state.lastSuggestion,
@@ -37,6 +52,7 @@ export class JsonStateStore implements StateStore {
 				costTotal: Number(usage.costTotal ?? 0),
 				last: usage.last,
 			},
+			rejectionHints,
 		};
 	}
 }

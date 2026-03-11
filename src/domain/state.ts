@@ -21,11 +21,21 @@ export interface SuggestionUsageStats {
 	last?: SuggestionUsage;
 }
 
+export interface RejectionHintState {
+	id: string;
+	hint: string;
+	includeRejectedSuggestionText: boolean;
+	rejectedSuggestionText?: string;
+	remainingUses: number;
+	createdAt: string;
+}
+
 export interface RuntimeState {
 	stateVersion: number;
 	lastSuggestion?: LastSuggestionState;
 	steeringHistory: SteeringEvent[];
 	suggestionUsage: SuggestionUsageStats;
+	rejectionHints: RejectionHintState[];
 }
 
 export const INITIAL_RUNTIME_STATE: RuntimeState = {
@@ -40,4 +50,5 @@ export const INITIAL_RUNTIME_STATE: RuntimeState = {
 		totalTokens: 0,
 		costTotal: 0,
 	},
+	rejectionHints: [],
 };

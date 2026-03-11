@@ -1,6 +1,6 @@
 import type { PromptSuggesterConfig, ThinkingLevel } from "../../config/types.js";
 import type { SuggestionUsage, TurnContext } from "../../domain/suggestion.js";
-import type { SuggestionUsageStats } from "../../domain/state.js";
+import type { RejectionHintState, SuggestionUsageStats } from "../../domain/state.js";
 import type { Logger } from "../ports/logger.js";
 import type { SeedStore } from "../ports/seed-store.js";
 import type { StateStore } from "../ports/state-store.js";
@@ -43,6 +43,31 @@ function toThinking(value: string): ThinkingLevel | undefined {
 	return value === "session-default" ? undefined : (value as ThinkingLevel);
 }
 
+function consumeHints(hints: RejectionHintState[]): RejectionHintState[] {
+	return hints
+		.map((hint) =>
+			hint.remainingUses > 0
+				? {
+					...hint,
+					remainingUses: hint.remainingUses - 1,
+				}
+				: hint,
+		)
+		.filter((hint) => hint.remainingUses > 0);
+}
+
+function toHintPromptContext(hints: RejectionHintState[]) {
+	return hints.map((hint) => ({
+		hint: hint.hint,
+		includeRejectedSuggestionText: hint.includeRejectedSuggestionText,
+		rejectedSuggestionText: hint.rejectedSuggestionText,
+	}));
+}
+
+function createHintId(): string {
+	return `hint-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 export class TurnEndOrchestrator {
 	public constructor(private readonly deps: TurnEndOrchestratorDeps) {}
 
@@ -65,14 +90,24 @@ export class TurnEndOrchestrator {
 			recentAccepted: state.steeringHistory.filter((event) => event.classification !== "changed_course").reverse(),
 			recentChanged: state.steeringHistory.filter((event) => event.classification === "changed_course").reverse(),
 		};
-		const suggestion = await this.deps.suggestionEngine.suggest(turn, seed, steering, {
-			modelRef:
-				this.deps.config.inference.suggesterModel === "session-default"
-					? undefined
-					: this.deps.config.inference.suggesterModel,
-			thinkingLevel: toThinking(this.deps.config.inference.suggesterThinking),
-		});
+		const activeHints = state.rejectionHints.filter((hint) => hint.remainingUses > 0);
+		const suggestion = await this.deps.suggestionEngine.suggest(
+			turn,
+			seed,
+			steering,
+			{
+				modelRef:
+					this.deps.config.inference.suggesterModel === "session-default"
+						? undefined
+						: this.deps.config.inference.suggesterModel,
+				thinkingLevel: toThinking(this.deps.config.inference.suggesterThinking),
+			},
+			{
+				feedbackHints: toHintPromptContext(activeHints),
+			},
+		);
 		const nextUsage = suggestion.usage ? accumulateUsage(state.suggestionUsage, suggestion.usage) : state.suggestionUsage;
+		const nextHints = consumeHints(state.rejectionHints);
 
 		if (suggestion.kind === "no_suggestion") {
 			this.deps.logger.info("suggestion.none", {
@@ -87,6 +122,7 @@ export class TurnEndOrchestrator {
 				...state,
 				lastSuggestion: undefined,
 				suggestionUsage: nextUsage,
+				rejectionHints: nextHints,
 			});
 			return;
 		}
@@ -102,12 +138,110 @@ export class TurnEndOrchestrator {
 				sourceLeafId: turn.sourceLeafId,
 			},
 			suggestionUsage: nextUsage,
+			rejectionHints: nextHints,
 		});
 		this.deps.logger.info("suggestion.generated", {
 			turnId: turn.turnId,
 			tokens: suggestion.usage?.totalTokens,
 			cost: suggestion.usage?.costTotal,
 			preview: suggestion.text.slice(0, 200),
+		});
+	}
+
+	public async regenerateFromHint(input: {
+		turn: TurnContext;
+		hint: string;
+		includeRejectedSuggestionText: boolean;
+		generationId?: number;
+	}): Promise<void> {
+		const [seed, state] = await Promise.all([this.deps.seedStore.load(), this.deps.stateStore.load()]);
+		const hint = input.hint.trim();
+		if (!hint) return;
+		const priorSuggestion = state.lastSuggestion?.text;
+		const newHint: RejectionHintState = {
+			id: createHintId(),
+			hint,
+			includeRejectedSuggestionText: input.includeRejectedSuggestionText,
+			rejectedSuggestionText:
+				input.includeRejectedSuggestionText && priorSuggestion ? priorSuggestion : undefined,
+			remainingUses: this.deps.config.feedback.hintLifetimeSuggestions,
+			createdAt: new Date().toISOString(),
+		};
+		const boundedHints = [...state.rejectionHints, newHint].slice(-this.deps.config.feedback.maxStoredHints);
+		const steering = {
+			recentAccepted: state.steeringHistory.filter((event) => event.classification !== "changed_course").reverse(),
+			recentChanged: state.steeringHistory.filter((event) => event.classification === "changed_course").reverse(),
+		};
+		const suggestion = await this.deps.suggestionEngine.suggest(
+			input.turn,
+			seed,
+			steering,
+			{
+				modelRef:
+					this.deps.config.inference.suggesterModel === "session-default"
+						? undefined
+						: this.deps.config.inference.suggesterModel,
+				thinkingLevel: toThinking(this.deps.config.inference.suggesterThinking),
+			},
+			{
+				feedbackHints: toHintPromptContext(boundedHints),
+				maxSuggestionChars: this.deps.config.feedback.maxHintedSuggestionChars,
+			},
+		);
+
+		const nextHints = consumeHints(boundedHints);
+		const nextUsage = suggestion.usage ? accumulateUsage(state.suggestionUsage, suggestion.usage) : state.suggestionUsage;
+		const rejectionSteeringEvent = state.lastSuggestion
+			? {
+					turnId: state.lastSuggestion.turnId,
+					suggestedPrompt: state.lastSuggestion.text,
+					actualUserPrompt: `[hint] ${hint}`,
+					classification: "changed_course" as const,
+					similarity: 0,
+					timestamp: new Date().toISOString(),
+				}
+			: undefined;
+		const nextSteering = rejectionSteeringEvent
+			? [...state.steeringHistory, rejectionSteeringEvent].slice(-this.deps.config.steering.historyWindow)
+			: state.steeringHistory;
+
+		if (suggestion.kind === "no_suggestion") {
+			await this.deps.suggestionSink.clearSuggestion({ generationId: input.generationId });
+			await this.deps.suggestionSink.setUsage(nextUsage);
+			await this.deps.stateStore.save({
+				...state,
+				lastSuggestion: undefined,
+				steeringHistory: nextSteering,
+				suggestionUsage: nextUsage,
+				rejectionHints: nextHints,
+			});
+			this.deps.logger.info("suggestion.hint.rejected.no_suggestion", {
+				turnId: input.turn.turnId,
+				hint,
+				includeRejectedSuggestionText: input.includeRejectedSuggestionText,
+			});
+			return;
+		}
+
+		await this.deps.suggestionSink.showSuggestion(suggestion.text, { generationId: input.generationId });
+		await this.deps.suggestionSink.setUsage(nextUsage);
+		await this.deps.stateStore.save({
+			...state,
+			lastSuggestion: {
+				text: suggestion.text,
+				shownAt: new Date().toISOString(),
+				turnId: input.turn.turnId,
+				sourceLeafId: input.turn.sourceLeafId,
+			},
+			steeringHistory: nextSteering,
+			suggestionUsage: nextUsage,
+			rejectionHints: nextHints,
+		});
+		this.deps.logger.info("suggestion.hint.rejected.regenerated", {
+			turnId: input.turn.turnId,
+			hint,
+			includeRejectedSuggestionText: input.includeRejectedSuggestionText,
+			tokens: suggestion.usage?.totalTokens,
 		});
 	}
 }
