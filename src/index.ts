@@ -11,7 +11,7 @@ import {
 	handleThinkingCommand,
 	renderStatus,
 } from "./infra/pi/command-handlers.js";
-import { installWrappedFooter } from "./infra/pi/wrapped-footer.js";
+import { refreshSuggesterUi } from "./infra/pi/ui-adapter.js";
 
 async function handleHintBasedRegeneration(
 	ctx: ExtensionCommandContext,
@@ -99,9 +99,20 @@ export default function suggester(pi: ExtensionAPI) {
 			const composition = await setRuntimeContext(ctx);
 			const generationId = composition.runtimeRef.bumpEpoch();
 			if (ctx.hasUI) {
-				installWrappedFooter(ctx);
+				ctx.ui.setFooter(undefined);
 				installGhostEditor(ctx, composition);
 				scheduleGhostEditorReassertion(ctx, composition);
+				refreshSuggesterUi({
+					getContext: () => composition.runtimeRef.getContext(),
+					getEpoch: () => composition.runtimeRef.getEpoch(),
+					getSuggestion: () => composition.runtimeRef.getSuggestion(),
+					setSuggestion: (text) => composition.runtimeRef.setSuggestion(text),
+					getPanelSuggestionStatus: () => composition.runtimeRef.getPanelSuggestionStatus(),
+					setPanelSuggestionStatus: (text) => composition.runtimeRef.setPanelSuggestionStatus(text),
+					getPanelLogStatus: () => composition.runtimeRef.getPanelLogStatus(),
+					setPanelLogStatus: (status) => composition.runtimeRef.setPanelLogStatus(status),
+					prefillOnlyWhenEditorEmpty: composition.config.suggestion.prefillOnlyWhenEditorEmpty,
+				});
 			}
 			await composition.orchestrators.sessionStart.handle();
 

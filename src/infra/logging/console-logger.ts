@@ -21,6 +21,7 @@ export interface ConsoleLoggerOptions {
 	statusKey?: string;
 	mirrorToConsoleWhenNoUi?: boolean;
 	eventLog?: EventLog;
+	setWidgetLogStatus?: (status: { level: Level; text: string } | undefined) => void;
 }
 
 export class ConsoleLogger implements Logger {
@@ -67,7 +68,8 @@ export class ConsoleLogger implements Logger {
 		const line = truncate(`[suggester ${level}] ${message}${payload}`, 220);
 		const statusLine = truncate(`[suggester ${level}] ${message}`, 120);
 		const ctx = this.options.getContext?.();
-		if (ctx?.hasUI) {
+		this.options.setWidgetLogStatus?.(level === "warn" || level === "error" ? { level, text: statusLine } : undefined);
+		if (ctx?.hasUI && !this.options.setWidgetLogStatus) {
 			const theme = ctx.ui.theme;
 			const colorized =
 				level === "error"

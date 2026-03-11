@@ -1,4 +1,5 @@
 import type { ExtensionContext } from "@mariozechner/pi-coding-agent";
+import { wrapTextWithAnsi } from "@mariozechner/pi-tui";
 import type { SuggestionUsageStats } from "../../domain/state.js";
 import type { SuggestionSink } from "../../app/orchestrators/turn-end.js";
 
@@ -7,6 +8,10 @@ export interface UiContextLike {
 	getEpoch(): number;
 	getSuggestion(): string | undefined;
 	setSuggestion(text: string | undefined): void;
+	getPanelSuggestionStatus(): string | undefined;
+	setPanelSuggestionStatus(text: string | undefined): void;
+	getPanelLogStatus(): { level: "debug" | "info" | "warn" | "error"; text: string } | undefined;
+	setPanelLogStatus(status: { level: "debug" | "info" | "warn" | "error"; text: string } | undefined): void;
 	prefillOnlyWhenEditorEmpty: boolean;
 }
 
@@ -25,6 +30,46 @@ function formatUsage(usage: { suggester: SuggestionUsageStats; seeder: Suggestio
 	const combinedCost = usage.suggester.costTotal + usage.seeder.costTotal;
 	const suggesterPromptTokens = usage.suggester.last?.inputTokens ?? 0;
 	return `suggester usage: ↑${formatTokens(combinedInput)} ↓${formatTokens(combinedOutput)} R${formatTokens(combinedCacheRead)} $${combinedCost.toFixed(3)} (${usage.suggester.calls} sugg, ${usage.seeder.calls} seed), last suggester prompt: ${formatTokens(suggesterPromptTokens)} tok`;
+}
+
+function formatPanelLog(
+	ctx: ExtensionContext,
+	status: { level: "debug" | "info" | "warn" | "error"; text: string },
+): string {
+	const theme = ctx.ui.theme;
+	if (status.level === "error") return theme.fg("error", status.text);
+	if (status.level === "warn") return theme.fg("warning", status.text);
+	if (status.level === "debug") return theme.fg("dim", status.text);
+	return theme.fg("muted", status.text);
+}
+
+export function refreshSuggesterUi(runtime: UiContextLike): void {
+	const ctx = runtime.getContext();
+	if (!ctx?.hasUI) return;
+
+	ctx.ui.setStatus("suggester", undefined);
+	ctx.ui.setStatus("suggester-events", undefined);
+
+	const suggestionStatus = runtime.getPanelSuggestionStatus();
+	const logStatus = runtime.getPanelLogStatus();
+	if (!suggestionStatus && !logStatus) {
+		ctx.ui.setWidget("suggester-panel", undefined);
+		return;
+	}
+
+	ctx.ui.setWidget(
+		"suggester-panel",
+		(_tui, theme) => ({
+			invalidate() {},
+			render(width: number): string[] {
+				const parts: string[] = [];
+				if (suggestionStatus) parts.push(theme.fg("accent", suggestionStatus));
+				if (logStatus) parts.push(formatPanelLog(ctx, logStatus));
+				return wrapTextWithAnsi(parts.join(" "), Math.max(10, width));
+			},
+		}),
+		{ placement: "belowEditor" },
+	);
 }
 
 export class PiSuggestionSink implements SuggestionSink {
@@ -56,15 +101,15 @@ export class PiSuggestionSink implements SuggestionSink {
 
 		const statusLabel = options?.restore ? "✦ restored prompt suggestion" : "✦ prompt suggestion";
 		const statusHint = canGhostInEditor ? " · Space accepts" : " · ghost hidden";
-		ctx.ui.setStatus("suggester", ctx.ui.theme.fg("accent", `${statusLabel}${statusHint}`));
+		this.runtime.setPanelSuggestionStatus(`${statusLabel}${statusHint}`);
+		refreshSuggesterUi(this.runtime);
 	}
 
 	public async clearSuggestion(options?: { generationId?: number }): Promise<void> {
 		if (options?.generationId !== undefined && options.generationId !== this.runtime.getEpoch()) return;
-		const ctx = this.runtime.getContext();
 		this.runtime.setSuggestion(undefined);
-		if (!ctx?.hasUI) return;
-		ctx.ui.setStatus("suggester", undefined);
+		this.runtime.setPanelSuggestionStatus(undefined);
+		refreshSuggesterUi(this.runtime);
 	}
 
 	public async setUsage(usage: { suggester: SuggestionUsageStats; seeder: SuggestionUsageStats }): Promise<void> {

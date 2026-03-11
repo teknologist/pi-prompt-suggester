@@ -8,6 +8,8 @@ export class RuntimeRef {
 	private suggestionRevision = 0;
 	private lastTurnContext: TurnContext | undefined;
 	private lastBootstrappedLeafId: string | undefined;
+	private panelSuggestionStatus: string | undefined;
+	private panelLogStatus: { level: "debug" | "info" | "warn" | "error"; text: string } | undefined;
 
 	public setContext(ctx: ExtensionContext): void {
 		this.currentContext = ctx;
@@ -53,5 +55,21 @@ export class RuntimeRef {
 
 	public markBootstrappedLeafId(leafId: string): void {
 		this.lastBootstrappedLeafId = leafId;
+	}
+
+	public setPanelSuggestionStatus(text: string | undefined): void {
+		this.panelSuggestionStatus = text?.trim() || undefined;
+	}
+
+	public getPanelSuggestionStatus(): string | undefined {
+		return this.panelSuggestionStatus;
+	}
+
+	public setPanelLogStatus(status: { level: "debug" | "info" | "warn" | "error"; text: string } | undefined): void {
+		this.panelLogStatus = status;
+	}
+
+	public getPanelLogStatus(): { level: "debug" | "info" | "warn" | "error"; text: string } | undefined {
+		return this.panelLogStatus;
 	}
 }

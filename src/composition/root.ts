@@ -18,7 +18,7 @@ import { ReseedRunner } from "../app/orchestrators/reseed-runner.js";
 import { SessionStartOrchestrator } from "../app/orchestrators/session-start.js";
 import { TurnEndOrchestrator } from "../app/orchestrators/turn-end.js";
 import { UserSubmitOrchestrator } from "../app/orchestrators/user-submit.js";
-import { PiSuggestionSink } from "../infra/pi/ui-adapter.js";
+import { PiSuggestionSink, refreshSuggesterUi } from "../infra/pi/ui-adapter.js";
 import { SessionStateStore } from "../infra/pi/session-state-store.js";
 import { RuntimeRef } from "../infra/pi/runtime-ref.js";
 
@@ -45,8 +45,22 @@ export async function createAppComposition(pi: ExtensionAPI, cwd: string = proce
 	const logger = new ConsoleLogger(config.logging.level, {
 		getContext: () => runtimeRef.getContext(),
 		statusKey: "suggester-events",
-		mirrorToConsoleWhenNoUi: true,
+		mirrorToConsoleWhenNoUi: false,
 		eventLog,
+		setWidgetLogStatus: (status) => {
+			runtimeRef.setPanelLogStatus(status);
+			refreshSuggesterUi({
+				getContext: () => runtimeRef.getContext(),
+				getEpoch: () => runtimeRef.getEpoch(),
+				getSuggestion: () => runtimeRef.getSuggestion(),
+				setSuggestion: (text) => runtimeRef.setSuggestion(text),
+				getPanelSuggestionStatus: () => runtimeRef.getPanelSuggestionStatus(),
+				setPanelSuggestionStatus: (text) => runtimeRef.setPanelSuggestionStatus(text),
+				getPanelLogStatus: () => runtimeRef.getPanelLogStatus(),
+				setPanelLogStatus: (next) => runtimeRef.setPanelLogStatus(next),
+				prefillOnlyWhenEditorEmpty: config.suggestion.prefillOnlyWhenEditorEmpty,
+			});
+		},
 	});
 	const taskQueue = new InMemoryTaskQueue();
 	const vcs = new GitClient(cwd);
@@ -60,6 +74,10 @@ export async function createAppComposition(pi: ExtensionAPI, cwd: string = proce
 		getEpoch: () => runtimeRef.getEpoch(),
 		getSuggestion: () => runtimeRef.getSuggestion(),
 		setSuggestion: (text) => runtimeRef.setSuggestion(text),
+		getPanelSuggestionStatus: () => runtimeRef.getPanelSuggestionStatus(),
+		setPanelSuggestionStatus: (text) => runtimeRef.setPanelSuggestionStatus(text),
+		getPanelLogStatus: () => runtimeRef.getPanelLogStatus(),
+		setPanelLogStatus: (status) => runtimeRef.setPanelLogStatus(status),
 		prefillOnlyWhenEditorEmpty: config.suggestion.prefillOnlyWhenEditorEmpty,
 	});
 
