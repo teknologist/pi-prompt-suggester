@@ -1,4 +1,7 @@
-# Architecture Plan: maintainable foundation for `pi-autoprompter`
+# Architecture Plan: maintainable foundation for `pi-autoprompter` (historical)
+
+> Note: this planning doc is retained for context and is not fully aligned with the live implementation.
+> For current behavior, use `docs/architecture.md` and `docs/architecture-decisions.md`.
 
 ## Design goals
 

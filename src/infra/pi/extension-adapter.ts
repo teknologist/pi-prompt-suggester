@@ -109,7 +109,7 @@ export class PiExtensionAdapter {
 			}
 
 			// If no assistant message was emitted for this agent_end, it is typically an abort.
-			// Emit an explicit aborted context so the suggestion engine can return "continue".
+			// Emit explicit aborted context so the suggestion engine can produce an informed next suggestion.
 			if (event.messages.length === 0) {
 				await this.wiring.onAgentEnd(buildAbortedFallbackTurn(sourceLeafId, branchMessages), ctx);
 			}

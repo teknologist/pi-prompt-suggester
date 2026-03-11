@@ -3,37 +3,38 @@
 ## Phase 0: Foundation
 - [x] Repo scaffold
 - [x] Vision and architecture docs
-- [x] Define `seed.json` schema
-- [x] Define session/branch-aware runtime state schema
+- [x] Seed schema + runtime state schema
 
-## Phase 1: Async Seeding MVP
-- [x] Background seeding runner (non-blocking)
-- [x] Repo signal discovery for seeding
-- [x] Persist seed with key-file hashes + source commit
-- [x] Staleness check on `session_start`
-- [x] `/autoprompter reseed` command (async)
+## Phase 1: Async Seeding
+- [x] Background reseeding runner (non-blocking)
+- [x] Staleness checks on session start and per-turn
+- [x] Persist seed with key-file hashes + metadata
+- [x] Manual reseed command
 
-## Phase 2: Turn-time Suggestion MVP
-- [x] Hook `agent_end` completion processing
-- [x] Deterministic fast-path: error/aborted -> `continue`
-- [x] Prompt-generator meta prompt runner (plain text output)
-- [x] Handle `[no suggestion]`
-- [x] Prefill editor via `ctx.ui.setEditorText` when safe
+## Phase 2: Agentic Seeder
+- [x] Replace static context seeding with agentic exploration (`ls/find/grep/read`)
+- [x] Required-category findings with explicit `not_found` handling
+- [x] Support multiple files per category
+- [x] Add structured summaries: intent/objectives/constraints/principles/status
 
-## Phase 3: Continuous Reseeding + Steering
-- [x] Run staleness checker after every agent completion
-- [x] Trigger async reseed with reason + changed files (+ optional git diff summary)
-- [x] Capture suggestion vs actual user prompt
-- [x] Classify `accepted_exact | accepted_edited | changed_course`
-- [x] Feed recent accepted/changed examples into prompt generation
+## Phase 3: Suggestion Quality + UX
+- [x] `agent_end`-driven suggestion generation
+- [x] Ghost suggestion editor behavior + safe fallback widget
+- [x] Steering capture and classification (`accepted_exact | accepted_edited | changed_course`)
+- [x] Include richer seed context in suggestion prompt
+- [x] Token/cost usage line for suggester
 
-## Phase 4: Tuning Loop
-- [ ] Local replay harness
-- [ ] Inspect rejected-example patterns
-- [ ] Tune context windows and thresholds
-- [ ] Iterate prompt wording and context formatting
+## Phase 4: Runtime Controls
+- [x] `/autoprompter model ...` (per-role seeder/suggester overrides)
+- [x] `/autoprompter thinking ...` (per-role thinking overrides)
+- [x] Session/branch-persisted overrides
 
-## Phase 5: UX Quality
-- [ ] Ghost suggestion rendering in custom editor
-- [ ] Tab accept behavior
-- [x] Minimal visual indicators and controls
+## Phase 5: Observability
+- [x] Persistent NDJSON event log
+- [x] Seeder exploration + suggestion pipeline event tracing
+- [x] `/autoprompter seed-trace [limit]`
+
+## Next
+- [ ] Replay/eval harness for offline quality tuning
+- [ ] Additional seed-trace filtering/export tooling
+- [ ] Prompt tuning loops based on rejected steering patterns

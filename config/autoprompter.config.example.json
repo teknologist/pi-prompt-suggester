@@ -1,10 +1,7 @@
 {
   "seed": {
     "keyFileGlobs": ["README.md", "vision.md", "docs/**/*.md", "src/index.ts", "package.json"],
-    "maxDiffChars": 3000,
-    "maxFiles": 24,
-    "maxFileChars": 5000,
-    "maxRepositoryContextChars": 32000
+    "maxDiffChars": 3000
   },
   "reseed": {
     "enabled": true,

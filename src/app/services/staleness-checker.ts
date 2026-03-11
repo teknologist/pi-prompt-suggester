@@ -10,7 +10,7 @@ import {
 	type StalenessCheckResult,
 } from "../../domain/seed.js";
 import { computeConfigFingerprint } from "./seed-metadata.js";
-import { matchesAnyGlob } from "./repository-context-builder.js";
+import { matchesAnyGlob } from "./path-globs.js";
 
 export interface StalenessCheckerDeps {
 	config: AutoprompterConfig;

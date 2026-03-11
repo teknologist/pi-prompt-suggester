@@ -56,8 +56,6 @@ function envOverrides(): Partial<AutoprompterConfig> {
 	const enabled = parseBoolean(process.env.PI_AUTOPROMPTER_RESEED_ENABLED);
 	const checkOnStart = parseBoolean(process.env.PI_AUTOPROMPTER_CHECK_ON_SESSION_START);
 	const checkAfterTurn = parseBoolean(process.env.PI_AUTOPROMPTER_CHECK_AFTER_EVERY_TURN);
-	const maxFiles = parseInteger(process.env.PI_AUTOPROMPTER_SEED_MAX_FILES);
-	const maxContext = parseInteger(process.env.PI_AUTOPROMPTER_SEED_MAX_REPOSITORY_CONTEXT_CHARS);
 	const maxAssistantTurnChars = parseInteger(process.env.PI_AUTOPROMPTER_SUGGESTION_MAX_ASSISTANT_TURN_CHARS);
 	const loggingLevel = process.env.PI_AUTOPROMPTER_LOG_LEVEL;
 	const noSuggestionToken = process.env.PI_AUTOPROMPTER_NO_SUGGESTION_TOKEN;
@@ -65,8 +63,6 @@ function envOverrides(): Partial<AutoprompterConfig> {
 	return {
 		seed: {
 			...DEFAULT_CONFIG.seed,
-			...(maxFiles !== undefined ? { maxFiles } : {}),
-			...(maxContext !== undefined ? { maxRepositoryContextChars: maxContext } : {}),
 		},
 		reseed: {
 			...DEFAULT_CONFIG.reseed,

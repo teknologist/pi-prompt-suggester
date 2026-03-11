@@ -4,9 +4,6 @@ export const DEFAULT_CONFIG: AutoprompterConfig = {
 	seed: {
 		keyFileGlobs: ["README.md", "vision.md", "docs/**/*.md", "src/index.ts", "package.json"],
 		maxDiffChars: 3000,
-		maxFiles: 24,
-		maxFileChars: 5000,
-		maxRepositoryContextChars: 32000,
 	},
 	reseed: {
 		enabled: true,
@@ -56,9 +53,6 @@ export function validateConfig(config: unknown): config is AutoprompterConfig {
 	const { seed, reseed, suggestion, steering, logging } = config;
 	if (!Array.isArray(seed.keyFileGlobs) || !seed.keyFileGlobs.every((value) => typeof value === "string")) return false;
 	if (!isPositiveInteger(seed.maxDiffChars)) return false;
-	if (!isPositiveInteger(seed.maxFiles)) return false;
-	if (!isPositiveInteger(seed.maxFileChars)) return false;
-	if (!isPositiveInteger(seed.maxRepositoryContextChars)) return false;
 
 	if (typeof reseed.enabled !== "boolean") return false;
 	if (typeof reseed.checkOnSessionStart !== "boolean") return false;

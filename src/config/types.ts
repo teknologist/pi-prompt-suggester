@@ -1,9 +1,6 @@
 export interface SeedConfig {
 	keyFileGlobs: string[];
 	maxDiffChars: number;
-	maxFiles: number;
-	maxFileChars: number;
-	maxRepositoryContextChars: number;
 }
 
 export interface ReseedConfig {

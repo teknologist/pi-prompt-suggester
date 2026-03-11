@@ -1,4 +1,7 @@
-# Implementation Plan: pi-autoprompter (revised)
+# Implementation Plan: pi-autoprompter (historical)
+
+> Note: this document reflects an earlier planning phase and is partially outdated.
+> Current behavior is documented in `docs/architecture.md` and `docs/architecture-decisions.md`.
 
 ## Goal
 

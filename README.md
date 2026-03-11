@@ -23,7 +23,7 @@ Implemented end-to-end:
 - seed persistence in `.pi/autoprompter/seed.json`
 - session/branch-aware steering + model/thinking overrides via pi custom session entries
 - `agent_end`-driven prompt suggestion generation
-- deterministic fast-path `continue` for error/aborted completions
+- fast-path `continue` for error completions; aborted turns use model-based suggestion with abort context
 - suggestion display with guarded editor prefill
 - steering capture from the next real user input
 - persistent observability log in `.pi/autoprompter/logs/events.ndjson`
@@ -35,7 +35,6 @@ Implemented end-to-end:
 - [`vision.md`](./vision.md)
 - [`docs/architecture.md`](./docs/architecture.md)
 - [`docs/meta-prompts.md`](./docs/meta-prompts.md)
-- [`docs/implementation-plan.md`](./docs/implementation-plan.md)
-- [`docs/architecture-plan.md`](./docs/architecture-plan.md)
 - [`docs/architecture-decisions.md`](./docs/architecture-decisions.md)
+- [`docs/roadmap.md`](./docs/roadmap.md)
 - [`config/autoprompter.config.example.json`](./config/autoprompter.config.example.json)
