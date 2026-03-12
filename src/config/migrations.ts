@@ -1,4 +1,4 @@
-export const CURRENT_CONFIG_SCHEMA_VERSION = 3;
+export const CURRENT_CONFIG_SCHEMA_VERSION = 4;
 
 type ConfigObject = Record<string, unknown>;
 
@@ -33,6 +33,13 @@ function migrateV2ToV3(config: ConfigObject): ConfigObject {
 		next.seed = rest;
 	}
 	return next;
+}
+
+function migrateV3ToV4(config: ConfigObject): ConfigObject {
+	return {
+		...config,
+		schemaVersion: 4,
+	};
 }
 
 export function migrateOverrideConfig(config: ConfigObject): {
@@ -70,6 +77,11 @@ export function migrateOverrideConfig(config: ConfigObject): {
 			case 2:
 				migrated = migrateV2ToV3(migrated);
 				current = 3;
+				changed = true;
+				break;
+			case 3:
+				migrated = migrateV3ToV4(migrated);
+				current = 4;
 				changed = true;
 				break;
 			default:

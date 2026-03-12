@@ -1,12 +1,13 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "seed": {
     "maxDiffChars": 3000
   },
   "reseed": {
     "enabled": true,
     "checkOnSessionStart": true,
-    "checkAfterEveryTurn": true
+    "checkAfterEveryTurn": true,
+    "turnCheckInterval": 10
   },
   "suggestion": {
     "noSuggestionToken": "[no suggestion]",

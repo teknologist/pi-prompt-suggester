@@ -613,6 +613,11 @@ export async function handleSettingsUiCommand(
 				description: composition.config.reseed.checkAfterEveryTurn ? "on" : "off",
 			},
 			{
+				value: "reseed.turnCheckInterval",
+				label: "Turn staleness check interval",
+				description: String(composition.config.reseed.turnCheckInterval),
+			},
+			{
 				value: "inference.seederModel",
 				label: "Seeder model",
 				description: composition.config.inference.seederModel,
@@ -684,6 +689,17 @@ export async function handleSettingsUiCommand(
 		return parsed;
 	};
 
+	const promptNonNegativeInt = async (label: string, currentValue: number): Promise<number | undefined> => {
+		const raw = await ctx.ui.editor(label, String(currentValue));
+		if (raw === undefined) return undefined;
+		const parsed = Number.parseInt(raw.trim(), 10);
+		if (!Number.isInteger(parsed) || parsed < 0) {
+			ctx.ui.notify("Value must be a non-negative integer.", "error");
+			return undefined;
+		}
+		return parsed;
+	};
+
 	const promptModel = async (label: string, currentValue: string): Promise<string | undefined> => {
 		const options = await getModelSelectionOptions(ctx);
 		const selected = await ctx.ui.select(`${label} (current: ${currentValue})`, options);
@@ -739,6 +755,14 @@ export async function handleSettingsUiCommand(
 				const selected = await ctx.ui.select(`${action}?`, ["true", "false"]);
 				if (!selected) continue;
 				await writeOverrideValue(ctx, composition, activeScope, action, selected === "true");
+				ctx.ui.notify(`Updated ${action} in ${activeScope} override.`, "info");
+				continue;
+			}
+
+			if (action === "reseed.turnCheckInterval") {
+				const next = await promptNonNegativeInt("Turn staleness check interval (0 disables turn checks)", composition.config.reseed.turnCheckInterval);
+				if (next === undefined) continue;
+				await writeOverrideValue(ctx, composition, activeScope, action, next);
 				ctx.ui.notify(`Updated ${action} in ${activeScope} override.`, "info");
 				continue;
 			}

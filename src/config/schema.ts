@@ -9,6 +9,10 @@ function isPositiveInteger(value: unknown): boolean {
 	return typeof value === "number" && Number.isInteger(value) && value > 0;
 }
 
+function isNonNegativeInteger(value: unknown): boolean {
+	return typeof value === "number" && Number.isInteger(value) && value >= 0;
+}
+
 function isPositiveNumber(value: unknown): boolean {
 	return typeof value === "number" && Number.isFinite(value) && value > 0;
 }
@@ -37,6 +41,7 @@ export function validateConfig(config: unknown): config is PromptSuggesterConfig
 	if (typeof reseed.enabled !== "boolean") return false;
 	if (typeof reseed.checkOnSessionStart !== "boolean") return false;
 	if (typeof reseed.checkAfterEveryTurn !== "boolean") return false;
+	if (!isNonNegativeInteger(reseed.turnCheckInterval)) return false;
 
 	if (typeof suggestion.noSuggestionToken !== "string") return false;
 	if (typeof suggestion.fastPathContinueOnError !== "boolean") return false;

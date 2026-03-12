@@ -77,15 +77,32 @@ export class TurnEndOrchestrator {
 			status: turn.status,
 			generationId,
 		});
-		if (this.deps.checkForStaleness) {
-			const currentSeed = await this.deps.seedStore.load();
-			const staleness = await this.deps.stalenessChecker.check(currentSeed);
-			if (staleness.stale && staleness.trigger) {
-				void this.deps.reseedRunner.trigger(staleness.trigger);
-			}
-		}
 
 		const [seed, state] = await Promise.all([this.deps.seedStore.load(), this.deps.stateStore.load()]);
+		let turnsSinceLastStalenessCheck = state.turnsSinceLastStalenessCheck;
+		if (this.deps.checkForStaleness && this.deps.config.reseed.checkAfterEveryTurn) {
+			const interval = this.deps.config.reseed.turnCheckInterval;
+			if (interval > 0) {
+				turnsSinceLastStalenessCheck += 1;
+				if (turnsSinceLastStalenessCheck >= interval) {
+					const staleness = await this.deps.stalenessChecker.check(seed);
+					this.deps.logger.debug("stale.check.completed", {
+						stale: staleness.stale,
+						reason: staleness.trigger?.reason,
+						via: "turn_interval",
+						interval,
+					});
+					turnsSinceLastStalenessCheck = 0;
+					if (staleness.stale && staleness.trigger) {
+						void this.deps.reseedRunner.trigger(staleness.trigger);
+					}
+				}
+			} else {
+				turnsSinceLastStalenessCheck = 0;
+			}
+		} else {
+			turnsSinceLastStalenessCheck = 0;
+		}
 		const steering = {
 			recentChanged: state.steeringHistory.filter((event) => event.classification === "changed_course").reverse(),
 		};
@@ -125,6 +142,7 @@ export class TurnEndOrchestrator {
 				lastSuggestion: undefined,
 				suggestionUsage: nextUsage,
 				rejectionHints: nextHints,
+				turnsSinceLastStalenessCheck,
 			});
 			return;
 		}
@@ -141,6 +159,7 @@ export class TurnEndOrchestrator {
 			},
 			suggestionUsage: nextUsage,
 			rejectionHints: nextHints,
+			turnsSinceLastStalenessCheck,
 		});
 		this.deps.logger.info("suggestion.generated", {
 			turnId: turn.turnId,

@@ -31,6 +31,7 @@ interface PersistedInteractionState {
 	lastSuggestion?: RuntimeState["lastSuggestion"];
 	steeringHistory: RuntimeState["steeringHistory"];
 	rejectionHints: RuntimeState["rejectionHints"];
+	turnsSinceLastStalenessCheck: number;
 }
 
 interface PersistedUsageState {
@@ -189,6 +190,7 @@ function normalizeInteractionState(raw: unknown): PersistedInteractionState {
 		lastSuggestion: latest.lastSuggestion,
 		steeringHistory: Array.isArray(latest.steeringHistory) ? latest.steeringHistory : [],
 		rejectionHints,
+		turnsSinceLastStalenessCheck: Math.max(0, Number(latest.turnsSinceLastStalenessCheck ?? 0)),
 	};
 }
 
@@ -200,6 +202,7 @@ function toRuntimeState(interaction: PersistedInteractionState, usage: Suggestio
 		suggestionUsage: cloneUsageStats(usage.suggester),
 		seederUsage: cloneUsageStats(usage.seeder),
 		rejectionHints: interaction.rejectionHints,
+		turnsSinceLastStalenessCheck: interaction.turnsSinceLastStalenessCheck,
 	};
 }
 
@@ -209,6 +212,7 @@ function toPersistedInteractionState(state: RuntimeState): PersistedInteractionS
 		lastSuggestion: state.lastSuggestion,
 		steeringHistory: state.steeringHistory,
 		rejectionHints: state.rejectionHints,
+		turnsSinceLastStalenessCheck: state.turnsSinceLastStalenessCheck,
 	});
 }
 

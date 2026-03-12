@@ -35,6 +35,12 @@ export class SessionStartOrchestrator {
 			stale: staleness.stale,
 			reason: staleness.trigger?.reason,
 		});
+		if (state.turnsSinceLastStalenessCheck !== 0) {
+			await this.deps.stateStore.save({
+				...state,
+				turnsSinceLastStalenessCheck: 0,
+			});
+		}
 		if (staleness.stale && staleness.trigger) {
 			void this.deps.reseedRunner.trigger(staleness.trigger);
 		}

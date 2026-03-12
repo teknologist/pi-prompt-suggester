@@ -9,6 +9,7 @@ export interface ReseedConfig {
 	enabled: boolean;
 	checkOnSessionStart: boolean;
 	checkAfterEveryTurn: boolean;
+	turnCheckInterval: number;
 }
 
 export interface SuggestionConfig {
