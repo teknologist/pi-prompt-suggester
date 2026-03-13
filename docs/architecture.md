@@ -23,17 +23,17 @@ Contains:
 - required-category findings (`vision`, `architecture`, `principles_guidelines`) with `found/not_found` rationale
 - generator/prompt/config fingerprints
 
-### Session/branch-local (pi custom entries)
-`suggester-state`
+### Session/branch-local (extension-owned files)
+`.pi/suggester/sessions/<session-id>/...`
 
 Contains:
 - last shown suggestion
 - steering history (`accepted_exact | accepted_edited | changed_course`)
-
-Usage counters are tracked via a session-persistent usage ledger (`suggester-usage` custom entries):
-- suggester usage/cost counters
-- seeder usage/cost counters
+- session-persistent suggester usage/cost counters
+- session-persistent seeder usage/cost counters
 - combined totals for status/UI display
+
+Older `suggester-state` / `suggester-usage` Pi custom entries are only used as a one-time legacy migration source.
 
 ---
 
@@ -80,12 +80,12 @@ Behavior:
 
 ## 4) UI behavior
 
-- Suggestions can ghost in editor when safe (idle, no pending messages, editor-empty policy; multiline requires empty editor)
-- Space-to-accept when editor is empty
-- Non-compatible cases hide the ghost suggestion (no below-editor fallback widget)
-- Footer lines:
-  - path/model/token/context lines
-  - wrapped extension status lines (including suggester usage) when content exceeds width
+- Suggestions can ghost in the editor when safe (idle, no pending messages, editor-empty policy; multiline requires an empty editor)
+- Space-to-accept when the editor is empty
+- Non-compatible cases hide the ghost suggestion; the suggestion text is never moved into the below-editor widget
+- The stock pi footer is preserved
+- Compact suggester info uses status lines
+- Richer suggester state/warnings use a below-editor widget
 
 ---
 

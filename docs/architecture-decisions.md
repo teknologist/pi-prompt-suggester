@@ -29,8 +29,8 @@
 - **Why:** keeps recovery/pivot behavior immediate and predictable after unsuccessful completions.
 
 ## 8) Suggestion UX is ghost-only with guarded rendering
-- **Decision:** render ghost suggestion only when editor state is compatible; otherwise hide it.
-- **Why:** keep the UX minimal and avoid a separate below-editor fallback surface.
+- **Decision:** render the suggestion itself as ghost text only when editor state is compatible; otherwise hide it.
+- **Why:** the suggestion should never be moved into another surface just to make it visible. The stock pi footer stays intact, while status/warnings can use separate status/widget UI.
 
 ## 9) Per-role model and thinking overrides are persisted in project config
 - **Decision:** `seeder` and `suggester` each support override for model and thinking level via commands, written to `.pi/suggester/config.json`.

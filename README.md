@@ -33,7 +33,7 @@ Implemented end-to-end:
 - one-time legacy migration from old `suggester-state` / `suggester-usage` Pi custom entries, then ignore-old-entries behavior
 - `agent_end`-driven prompt suggestion generation
 - fast-path `continue` for non-success completions (`error` and `aborted`) when enabled
-- ghost-only suggestion display with guarded editor compatibility checks
+- ghost-only suggestion display with guarded editor compatibility checks (the suggestion itself is never rendered in the widget)
 - steering capture from the next real user input
 - persistent observability log in `.pi/suggester/logs/events.ndjson`
 - separate usage accounting for suggester + seeder model calls (with combined totals in `/suggester status`)
@@ -125,8 +125,8 @@ Merge order:
 3. project override
 
 Notes:
-- config now has `schemaVersion`; override files are auto-normalized on load: supported values are kept, unsupported/invalid values are dropped, and missing fields fall back to the current defaults.
-- `inference.* = session-default` means “use current pi session model/thinking”.
+- config includes `schemaVersion`; override files are auto-normalized on load: supported values are kept, unsupported/invalid values are dropped, and missing fields fall back to current defaults.
+- `inference.* = session-default` means “use the current pi session model/thinking”.
 - `suggestion.customInstruction` is a persistent prompt-engineering hook for the suggester and can be edited via `/suggesterSettings` or `/suggester instruction set [project|user]`.
 - `/suggester model ...` and `/suggester thinking ...` edit project override (`.pi/suggester/config.json`) and apply immediately (no extension reload).
 - `/suggester config set [project|user] <path> <value>` writes to the selected override file and applies immediately.
@@ -146,8 +146,8 @@ Legacy note:
 ### Behavior summary
 - Suggestion generation runs on `agent_end`
 - Non-success turns (`error`, `aborted`) can fast-path to `continue` (configurable)
-- Suggestions are ghosted in editor when safe (including multiline only when editor is empty)
+- Suggestions are ghosted in the editor when safe (including multiline only when the editor is empty)
 - Press `Space` on an empty editor to accept the full ghost suggestion
-- If editor state is incompatible, ghost suggestion is hidden (no below-editor fallback widget)
+- If editor state is incompatible, the suggestion is hidden; it is never rendered as suggestion text in the below-editor widget
 - `/suggester status` reports separate suggester usage, seeder usage, and combined totals (session-persistent across reload/resume)
-- Footer now wraps extension statuses (including suggester usage/tokens) across multiple lines instead of truncating to one line
+- The stock pi footer is preserved; compact suggester info uses status lines, and richer suggester state/warnings use the below-editor widget
