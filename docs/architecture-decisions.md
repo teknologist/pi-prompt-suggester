@@ -47,3 +47,15 @@
 ## 12) Operational command surface remains unified under `/suggester`
 - **Decision:** status/reseed/model/thinking/config/seed-trace are subcommands.
 - **Why:** one discoverable command namespace keeps UX coherent.
+
+## 13) Full-transcript prompting ships as an experiment, not a replacement
+- **Decision:** keep the existing compact-summary suggester as the control and add a transcript-cache strategy as a variant-driven experiment.
+- **Why:** this is a large quality/cost tradeoff change and should be measurable before becoming the default.
+
+## 14) Transcript-cache requests must preserve a shared prompt prefix
+- **Decision:** the experimental suggester reuses the real session system prompt and reconstructed branch transcript, and only diverges in a final suggester-only user message.
+- **Why:** prompt caching depends on stable shared prefixes; putting experimental instructions in the suffix gives the next real user prompt the best chance of reusing the same cached prefix.
+
+## 15) Unsafe or oversized transcript runs fall back to compact prompting
+- **Decision:** the transcript-cache strategy must be guarded by eligibility checks (context usage, branch size, reconstruction success, request failures) and fall back to the compact strategy when needed.
+- **Why:** this keeps rollout safe and prevents a cache miss or oversized branch from turning the experiment into a large surprise cost spike.

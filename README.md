@@ -113,5 +113,6 @@ For implementation details, architecture, and maintainer-oriented notes, see:
 
 - [`docs/architecture.md`](./docs/architecture.md)
 - [`docs/architecture-decisions.md`](./docs/architecture-decisions.md)
+- [`docs/transcript-cache-experiment.md`](./docs/transcript-cache-experiment.md)
 - [`docs/meta-prompts.md`](./docs/meta-prompts.md)
 - [`docs/roadmap.md`](./docs/roadmap.md)
