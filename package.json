@@ -14,7 +14,19 @@
   },
   "main": "dist/index.js",
   "keywords": [
-    "pi-package"
+    "pi-package",
+    "pi-coding-agent",
+    "pi-extension",
+    "coding-agent",
+    "terminal-agent",
+    "ai-agent",
+    "developer-tools",
+    "prompt-suggester",
+    "prompt-suggestion",
+    "prompt-engineering",
+    "workflow-automation",
+    "productivity",
+    "typescript"
   ],
   "pi": {
     "extensions": [
