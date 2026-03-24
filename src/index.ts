@@ -19,9 +19,13 @@ import { createUiContext } from "./infra/pi/ui-context.js";
 
 export default function suggester(pi: ExtensionAPI) {
 	let compositionPromise: Promise<AppComposition> | undefined;
+	let ghostEditorInstallState: { context: ExtensionContext; sessionFile: string | null } | undefined;
 
-	function installGhostEditor(ctx: ExtensionContext, composition: AppComposition): void {
+	function ensureGhostEditorInstalled(ctx: ExtensionContext, composition: AppComposition): void {
 		if (!ctx.hasUI) return;
+		const sessionFile = ctx.sessionManager.getSessionFile() ?? null;
+		if (ghostEditorInstallState?.context === ctx && ghostEditorInstallState.sessionFile === sessionFile) return;
+
 		ctx.ui.setEditorComponent((tui, theme, kb) =>
 			new GhostSuggestionEditor(
 				tui,
@@ -33,17 +37,7 @@ export default function suggester(pi: ExtensionAPI) {
 				(state) => composition.runtimeRef.setEditorHistoryState(state),
 			),
 		);
-	}
-
-	function scheduleGhostEditorReassertion(ctx: ExtensionContext, composition: AppComposition): void {
-		const delaysMs = [50, 250, 1000, 3000, 8000];
-		for (const delay of delaysMs) {
-			setTimeout(() => {
-				const active = composition.runtimeRef.getContext();
-				if (active !== ctx) return;
-				installGhostEditor(ctx, composition);
-			}, delay);
-		}
+		ghostEditorInstallState = { context: ctx, sessionFile };
 	}
 
 	async function getComposition(): Promise<AppComposition> {
@@ -67,8 +61,7 @@ export default function suggester(pi: ExtensionAPI) {
 			const composition = await setRuntimeContext(ctx);
 			const generationId = composition.runtimeRef.bumpEpoch();
 			if (ctx.hasUI) {
-				installGhostEditor(ctx, composition);
-				scheduleGhostEditorReassertion(ctx, composition);
+				ensureGhostEditorInstalled(ctx, composition);
 				refreshSuggesterUi(
 					createUiContext({
 						runtimeRef: composition.runtimeRef,
@@ -104,9 +97,6 @@ export default function suggester(pi: ExtensionAPI) {
 		onAgentEnd: async (turn, ctx) => {
 			if (!turn) return;
 			const composition = await setRuntimeContext(ctx);
-			if (ctx.hasUI) {
-				installGhostEditor(ctx, composition);
-			}
 			composition.runtimeRef.setLastTurnContext(turn);
 			const generationId = composition.runtimeRef.bumpEpoch();
 			await composition.orchestrators.agentEnd.handle(turn, generationId);
