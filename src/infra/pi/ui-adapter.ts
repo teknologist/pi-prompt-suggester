@@ -1,5 +1,5 @@
 import type { ExtensionContext } from "@mariozechner/pi-coding-agent";
-import { wrapTextWithAnsi } from "@mariozechner/pi-tui";
+import { truncateToWidth, visibleWidth } from "@mariozechner/pi-tui";
 import type { SuggestionSink } from "../../app/orchestrators/turn-end.js";
 import type { SuggestionUsageStats } from "../../domain/state.js";
 import { formatTokens } from "./display.js";
@@ -37,7 +37,13 @@ export function refreshSuggesterUi(runtime: UiContextLike): void {
 
 	const suggestionStatus = runtime.getPanelSuggestionStatus();
 	const logStatus = runtime.getPanelLogStatus();
+	const showInlinePanel = ctx.isIdle() && !ctx.hasPendingMessages();
 	if (!suggestionStatus && !logStatus) {
+		ctx.ui.setWidget("suggester-panel", undefined);
+		return;
+	}
+
+	if (!showInlinePanel) {
 		ctx.ui.setWidget("suggester-panel", undefined);
 		return;
 	}
@@ -50,7 +56,10 @@ export function refreshSuggesterUi(runtime: UiContextLike): void {
 				const parts: string[] = [];
 				if (suggestionStatus) parts.push(theme.fg("accent", suggestionStatus));
 				if (logStatus) parts.push(formatPanelLog(ctx, logStatus));
-				return wrapTextWithAnsi(parts.join(" "), Math.max(10, width));
+				const line = parts.join(" · ");
+				const truncated = truncateToWidth(line, Math.max(10, width), "", true);
+				const pad = " ".repeat(Math.max(0, width - visibleWidth(truncated)));
+				return [truncated + pad];
 			},
 		}),
 		{ placement: "belowEditor" },
