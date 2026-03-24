@@ -30,6 +30,10 @@ export interface TurnEndOrchestratorDeps {
 	variantStore?: SuggesterVariantStore;
 }
 
+function normalizeSuggestionForComparison(value: string): string {
+	return value.replace(/\s+/g, " ").trim().toLowerCase();
+}
+
 export class TurnEndOrchestrator {
 	public constructor(private readonly deps: TurnEndOrchestratorDeps) {}
 
@@ -131,6 +135,34 @@ export class TurnEndOrchestrator {
 				cacheWriteTokens: suggestion.usage?.cacheWriteTokens,
 				totalTokens: suggestion.usage?.totalTokens,
 				cost: suggestion.usage?.costTotal,
+			});
+			await this.deps.suggestionSink.clearSuggestion({ generationId });
+			await this.deps.suggestionSink.setUsage({ suggester: nextUsage, seeder: state.seederUsage });
+			await this.deps.stateStore.save({
+				...state,
+				lastSuggestion: undefined,
+				pendingNextTurnObservation: undefined,
+				suggestionUsage: nextUsage,
+				turnsSinceLastStalenessCheck,
+			});
+			return;
+		}
+
+		const normalizedSuggestion = normalizeSuggestionForComparison(suggestion.text);
+		const repeatedRejectedSuggestion = state.steeringHistory.find(
+			(event) =>
+				event.classification === "changed_course" &&
+				normalizeSuggestionForComparison(event.suggestedPrompt) === normalizedSuggestion,
+		);
+		if (repeatedRejectedSuggestion) {
+			this.deps.logger.info("suggestion.suppressed.repeated_rejected", {
+				turnId: turn.turnId,
+				variantName: activeVariantName,
+				requestedStrategy: metadata.requestedStrategy,
+				strategy: metadata.strategy,
+				latencyMs,
+				rejectedTurnId: repeatedRejectedSuggestion.turnId,
+				preview: suggestion.text.slice(0, 200),
 			});
 			await this.deps.suggestionSink.clearSuggestion({ generationId });
 			await this.deps.suggestionSink.setUsage({ suggester: nextUsage, seeder: state.seederUsage });
