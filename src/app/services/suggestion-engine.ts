@@ -115,24 +115,6 @@ export class SuggestionEngine {
 						transcriptCharCount: transcriptContext.transcriptCharCount,
 					});
 				}
-				if (transcriptContext.transcriptMessageCount > config.suggestion.transcriptMaxMessages) {
-					return await this.generateCompactSuggestion(turn, seed, steering, settings, config, {
-						requestedStrategy,
-						fallbackReason: "transcript_message_limit",
-						contextUsagePercent: transcriptContext.contextUsagePercent,
-						transcriptMessageCount: transcriptContext.transcriptMessageCount,
-						transcriptCharCount: transcriptContext.transcriptCharCount,
-					});
-				}
-				if (transcriptContext.transcriptCharCount > config.suggestion.transcriptMaxChars) {
-					return await this.generateCompactSuggestion(turn, seed, steering, settings, config, {
-						requestedStrategy,
-						fallbackReason: "transcript_char_limit",
-						contextUsagePercent: transcriptContext.contextUsagePercent,
-						transcriptMessageCount: transcriptContext.transcriptMessageCount,
-						transcriptCharCount: transcriptContext.transcriptCharCount,
-					});
-				}
 				const result = await this.deps.modelClient.generateSuggestion(transcriptContext, settings);
 				return {
 					text: result.text,

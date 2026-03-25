@@ -1,11 +1,18 @@
 import type { SessionTranscriptProvider } from "../../app/ports/session-transcript.js";
 import type { RuntimeContextProvider } from "../model/pi-model-client.js";
-import { buildSessionContext, type SessionEntry } from "@mariozechner/pi-coding-agent";
+import { buildSessionContext, type SessionContext, type SessionEntry } from "@mariozechner/pi-coding-agent";
 import type { Message } from "@mariozechner/pi-ai";
 
 function cloneMessages(messages: Message[]): Message[] {
 	return JSON.parse(JSON.stringify(messages)) as Message[];
 }
+
+type SessionManagerWithContext = {
+	getLeafId(): string | null;
+	getBranch(fromId?: string): SessionEntry[];
+	getSessionId(): string;
+	buildSessionContext?: () => SessionContext;
+};
 
 export class PiSessionTranscriptProvider implements SessionTranscriptProvider {
 	public constructor(private readonly runtime: RuntimeContextProvider) {}
@@ -13,9 +20,13 @@ export class PiSessionTranscriptProvider implements SessionTranscriptProvider {
 	public getActiveTranscript() {
 		const ctx = this.runtime.getContext();
 		if (!ctx) return undefined;
-		const leafId = ctx.sessionManager.getLeafId() ?? undefined;
-		const branchEntries = ctx.sessionManager.getBranch(leafId) as SessionEntry[];
-		const transcript = buildSessionContext(branchEntries, leafId);
+		const sessionManager = ctx.sessionManager as SessionManagerWithContext;
+		const transcript = typeof sessionManager.buildSessionContext === "function"
+			? sessionManager.buildSessionContext()
+			: buildSessionContext(
+				ctx.sessionManager.getBranch(ctx.sessionManager.getLeafId() ?? undefined) as SessionEntry[],
+				ctx.sessionManager.getLeafId() ?? undefined,
+			);
 		const systemPrompt = ctx.getSystemPrompt().trim();
 		if (!systemPrompt) return undefined;
 		return {

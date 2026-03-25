@@ -152,6 +152,54 @@ test("SuggestionEngine falls back to compact mode when transcript guardrails rej
 	assert.equal("transcriptMessages" in calls[0], false);
 });
 
+test("SuggestionEngine ignores transcript message and char counts when context usage is acceptable", async () => {
+	const calls = [];
+	const engine = new SuggestionEngine({
+		config: createConfig({
+			suggestion: {
+				strategy: "transcript-steering",
+				transcriptMaxContextPercent: 70,
+				transcriptMaxMessages: 10,
+				transcriptMaxChars: 100,
+			},
+		}),
+		modelClient: {
+			async generateSuggestion(context) {
+				calls.push(context);
+				return { text: "Zoom out and check the broader goal.", usage: undefined };
+			},
+		},
+		promptContextBuilder: {
+			build() {
+				return { latestAssistantTurn: "compact", turnStatus: "success", intentSeed: null, recentUserPrompts: [], toolSignals: [], touchedFiles: [], unresolvedQuestions: [], recentChanged: [], customInstruction: "", noSuggestionToken: "[no suggestion]", maxSuggestionChars: 200 };
+			},
+		},
+		transcriptPromptContextBuilder: {
+			build() {
+				return {
+					systemPrompt: "system",
+					transcriptMessages: [],
+					transcriptMessageCount: 500,
+					transcriptCharCount: 999999,
+					contextUsagePercent: 40,
+					intentSeed: null,
+					recentChanged: [],
+					customInstruction: "",
+					noSuggestionToken: "[no suggestion]",
+					maxSuggestionChars: 200,
+				};
+			},
+		},
+	});
+
+	const result = await engine.suggest(turn, null, { recentChanged: [] });
+	assert.equal(result.kind, "suggestion");
+	assert.equal(result.metadata.strategy, "transcript-steering");
+	assert.equal(result.metadata.fallbackReason, undefined);
+	assert.equal(calls.length, 1);
+	assert.equal("transcriptMessages" in calls[0], true);
+});
+
 test("SuggestionEngine falls back to compact mode when transcript rollout samples out", async () => {
 	const calls = [];
 	const engine = new SuggestionEngine({
