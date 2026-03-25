@@ -19,7 +19,7 @@ import {
 } from "../../domain/seed.js";
 import { renderForcedSeederFinalPrompt, renderSeederSystemPrompt, renderSeederUserPrompt } from "../../prompts/seeder-template.js";
 import { renderSuggestionPrompt } from "../../prompts/suggestion-template.js";
-import { renderTranscriptSuggestionPrompt } from "../../prompts/transcript-suggestion-template.js";
+import { renderTranscriptSteeringPrompt } from "../../prompts/transcript-steering-template.js";
 
 const execFileAsync = promisify(execFile);
 const IGNORED_DIRS = new Set([".git", "node_modules", ".pi", "dist", "build", "coverage"]);
@@ -463,7 +463,7 @@ export class PiModelClient implements ModelClient {
 		settings?: ModelInvocationSettings,
 	): Promise<{ text: string; usage?: SuggestionUsage }> {
 		if (isTranscriptSuggestionContext(context)) {
-			const suffixPrompt = renderTranscriptSuggestionPrompt(context);
+			const suffixPrompt = renderTranscriptSteeringPrompt(context);
 			const userMessage: UserMessage = {
 				role: "user",
 				content: [{ type: "text", text: suffixPrompt }],
