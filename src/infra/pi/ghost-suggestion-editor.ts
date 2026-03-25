@@ -4,6 +4,7 @@ import type { EditorHistoryState } from "./runtime-ref.js";
 
 const GHOST_COLOR = "\x1b[38;5;244m";
 const RESET = "\x1b[0m";
+const DEBUG_GHOST_UI = true;
 // Cursor rendering varies across themes/terminal modes (e.g. 7m, 5;7m, etc.).
 // Match any ANSI-styled single-space cursor block instead of one exact sequence.
 const END_CURSOR = /(?:\x1b\[[0-9;]*m \x1b\[[0-9;]*m|█|▌|▋|▉|▓)/;
@@ -85,7 +86,11 @@ export class GhostSuggestionEditor extends CustomEditor {
 
 	public render(width: number): string[] {
 		const lines = super.render(width);
-		const ghost = this.getGhostState();
+		const ghostDebugState = this.getGhostDebugState();
+		const ghost = ghostDebugState.state;
+		if (DEBUG_GHOST_UI && lines.length > 0) {
+			lines[0] = this.renderDebugBorder(width, ghostDebugState.reason);
+		}
 		if (!ghost) return lines;
 		if (lines.length < 3) return lines;
 
@@ -123,7 +128,24 @@ export class GhostSuggestionEditor extends CustomEditor {
 			else lines.splice(bottomBorderIndex, 0, ghostLine);
 		}
 
+		if (DEBUG_GHOST_UI) {
+			const bottomBorderIndex = lines.length - 1;
+			lines.splice(bottomBorderIndex, 0, this.renderDebugLine(width, `ghost-debug: ${ghostDebugState.reason}`));
+		}
+
 		return lines;
+	}
+
+	private renderDebugBorder(width: number, reason: string): string {
+		const label = ` ghost-editor ${reason} `;
+		const line = `${"─".repeat(Math.max(0, Math.floor((width - label.length) / 2)))}${label}`;
+		return truncateToWidth(line.padEnd(width, "─"), width, "");
+	}
+
+	private renderDebugLine(width: number, text: string): string {
+		const rendered = `${GHOST_COLOR}${truncateToWidth(text, width, "")}${RESET}`;
+		const pad = " ".repeat(Math.max(0, width - visibleWidth(rendered)));
+		return truncateToWidth(`${rendered}${pad}`, width, "");
 	}
 
 	private renderGhostLineAtColumn(text: string, col: number, width: number): string {
@@ -166,7 +188,7 @@ export class GhostSuggestionEditor extends CustomEditor {
 		}
 	}
 
-	private getGhostState(): GhostState | undefined {
+	private getGhostDebugState(): { state?: GhostState; reason: string } {
 		const revision = this.getSuggestionRevision();
 		const suggestion = this.getSuggestion()?.trim();
 		if (revision !== this.lastSuggestionRevision || suggestion !== this.lastSuggestion) {
@@ -176,17 +198,25 @@ export class GhostSuggestionEditor extends CustomEditor {
 			this.suppressGhostArmedByNonEmptyText = false;
 		}
 
-		if (!suggestion || this.suppressGhost) return undefined;
+		if (!suggestion) return { reason: "no-suggestion" };
+		if (this.suppressGhost) return { reason: "suppressed" };
 		const text = this.getText();
 		const cursor = this.getCursor();
-		if (text.includes("\n")) return undefined;
-		if (cursor.line !== 0 || cursor.col !== text.length) return undefined;
-		if (!suggestion.startsWith(text)) return undefined;
+		if (text.includes("\n")) return { reason: "multiline-editor" };
+		if (cursor.line !== 0 || cursor.col !== text.length) return { reason: "cursor-not-at-end" };
+		if (!suggestion.startsWith(text)) return { reason: "prefix-mismatch" };
 		const suffix = suggestion.slice(text.length);
-		if (!suffix) return undefined;
+		if (!suffix) return { reason: "empty-suffix" };
 		const suffixLines = suffix.split("\n");
 		const multiline = suffixLines.length > 1;
-		if (multiline && text.length > 0) return undefined;
-		return { text, suggestion, suffix, suffixLines, multiline };
+		if (multiline && text.length > 0) return { reason: "multiline-suffix-with-prefix" };
+		return {
+			state: { text, suggestion, suffix, suffixLines, multiline },
+			reason: "ready",
+		};
+	}
+
+	private getGhostState(): GhostState | undefined {
+		return this.getGhostDebugState().state;
 	}
 }
