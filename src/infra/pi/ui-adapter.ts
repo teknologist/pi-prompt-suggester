@@ -37,13 +37,7 @@ export function refreshSuggesterUi(runtime: UiContextLike): void {
 
 	const suggestionStatus = runtime.getPanelSuggestionStatus();
 	const logStatus = runtime.getPanelLogStatus();
-	const showInlinePanel = ctx.isIdle() && !ctx.hasPendingMessages();
 	if (!suggestionStatus && !logStatus) {
-		ctx.ui.setWidget("suggester-panel", undefined);
-		return;
-	}
-
-	if (!showInlinePanel) {
 		ctx.ui.setWidget("suggester-panel", undefined);
 		return;
 	}
@@ -78,14 +72,11 @@ export class PiSuggestionSink implements SuggestionSink {
 		const trimmedEditorText = editorText.trim();
 		const isMultilineSuggestion = text.includes("\n");
 		const prefixCompatible = !editorText.includes("\n") && text.startsWith(editorText);
-		const canGhostInEditor =
-			ctx.isIdle() &&
-			!ctx.hasPendingMessages() &&
-			(isMultilineSuggestion
+		const canGhostInEditor = isMultilineSuggestion
+			? trimmedEditorText.length === 0
+			: this.runtime.prefillOnlyWhenEditorEmpty
 				? trimmedEditorText.length === 0
-				: this.runtime.prefillOnlyWhenEditorEmpty
-					? trimmedEditorText.length === 0
-					: trimmedEditorText.length === 0 || prefixCompatible);
+				: trimmedEditorText.length === 0 || prefixCompatible;
 
 		if (canGhostInEditor) {
 			this.runtime.setSuggestion(text);
