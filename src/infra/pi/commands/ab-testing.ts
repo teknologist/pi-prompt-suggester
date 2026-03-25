@@ -2,8 +2,10 @@ import type { ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
 import { SelectList, wrapTextWithAnsi } from "@mariozechner/pi-tui";
 import type { AppComposition } from "../../../composition/root.js";
 import { PromptContextBuilder } from "../../../app/services/prompt-context-builder.js";
+import { TranscriptPromptContextBuilder } from "../../../app/services/transcript-prompt-context-builder.js";
 import { SuggestionEngine } from "../../../app/services/suggestion-engine.js";
 import { PiModelClient } from "../../model/pi-model-client.js";
+import { PiSessionTranscriptProvider } from "../../pi/session-transcript-provider.js";
 import { toInvocationThinkingLevel } from "../../../config/inference.js";
 import type { InferenceDefault, ThinkingLevel } from "../../../config/types.js";
 import type { AbWinner, SuggesterVariant } from "../suggester-variant-store.js";
@@ -18,7 +20,7 @@ function summarizeVariant(variant: SuggesterVariant): string {
 	if (variant.maxRecentUserPrompts) parts.push(`recent: ${variant.maxRecentUserPrompts}`);
 	if (variant.maxRecentUserPromptChars) parts.push(`prompt chars: ${variant.maxRecentUserPromptChars}`);
 	if (variant.maxChangedExamples) parts.push(`changed: ${variant.maxChangedExamples}`);
-	if (variant.transcriptMaxContextPercent) parts.push(`ctx≤${variant.transcriptMaxContextPercent}%`);
+	if (variant.transcriptMaxContextPercent) parts.push(`steering ctx≤${variant.transcriptMaxContextPercent}%`);
 	if (variant.transcriptMaxMessages) parts.push(`msgs≤${variant.transcriptMaxMessages}`);
 	if (variant.transcriptMaxChars) parts.push(`chars≤${variant.transcriptMaxChars}`);
 	if (variant.transcriptRolloutPercent !== undefined) parts.push(`rollout: ${variant.transcriptRolloutPercent}%`);
@@ -314,6 +316,10 @@ async function generateSuggestionForVariant(
 		config: effectiveConfig,
 		modelClient: new PiModelClient(composition.runtimeRef, undefined, ctx.cwd),
 		promptContextBuilder: new PromptContextBuilder(effectiveConfig),
+		transcriptPromptContextBuilder: new TranscriptPromptContextBuilder(
+			effectiveConfig,
+			new PiSessionTranscriptProvider(composition.runtimeRef),
+		),
 	});
 	const steering = {
 		recentChanged: state.steeringHistory.filter((event) => event.classification === "changed_course").reverse(),

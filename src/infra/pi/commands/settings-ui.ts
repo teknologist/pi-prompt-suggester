@@ -17,6 +17,7 @@ export async function handleSettingsUiCommand(
 	const persistence = new SuggesterConfigPersistence(ctx, composition);
 	let activeScope: ConfigScope = "project";
 	const thinkingOptions = [...THINKING_LEVELS, SESSION_DEFAULT];
+	const strategyOptions = ["compact", "transcript-steering"] as const;
 
 	const formatScopeName = (scope: ConfigScope): string => scope === "project" ? "Project override" : "User override";
 	const formatValue = (value: unknown): string => {
@@ -49,7 +50,7 @@ export async function handleSettingsUiCommand(
 			{
 				value: "ab.manageVariants",
 				label: "Manage variants",
-				description: `${composition.stores.variantStore.listVariants().length} variants • model, thinking, chars, recent prompts, changed examples`,
+				description: `${composition.stores.variantStore.listVariants().length} variants • strategy, model, thinking, guardrails`,
 			},
 			{
 				value: "ab.compareVariants",
@@ -65,6 +66,11 @@ export async function handleSettingsUiCommand(
 				value: "scope",
 				label: "Base settings scope",
 				description: `${formatScopeName(activeScope)} → ${persistence.overridePathForScope(activeScope)}`,
+			},
+			{
+				value: "suggestion.strategy",
+				label: "Suggestion strategy",
+				description: await describeScopedValue("suggestion.strategy", composition.config.suggestion.strategy),
 			},
 			{
 				value: "suggestion.customInstruction",
@@ -90,6 +96,38 @@ export async function handleSettingsUiCommand(
 				description: await describeScopedValue(
 					"suggestion.maxRecentUserPromptChars",
 					composition.config.suggestion.maxRecentUserPromptChars,
+				),
+			},
+			{
+				value: "suggestion.transcriptMaxContextPercent",
+				label: "Transcript max context %",
+				description: await describeScopedValue(
+					"suggestion.transcriptMaxContextPercent",
+					composition.config.suggestion.transcriptMaxContextPercent,
+				),
+			},
+			{
+				value: "suggestion.transcriptMaxMessages",
+				label: "Transcript max messages",
+				description: await describeScopedValue(
+					"suggestion.transcriptMaxMessages",
+					composition.config.suggestion.transcriptMaxMessages,
+				),
+			},
+			{
+				value: "suggestion.transcriptMaxChars",
+				label: "Transcript max chars",
+				description: await describeScopedValue(
+					"suggestion.transcriptMaxChars",
+					composition.config.suggestion.transcriptMaxChars,
+				),
+			},
+			{
+				value: "suggestion.transcriptRolloutPercent",
+				label: "Transcript rollout %",
+				description: await describeScopedValue(
+					"suggestion.transcriptRolloutPercent",
+					composition.config.suggestion.transcriptRolloutPercent,
 				),
 			},
 			{
@@ -217,6 +255,22 @@ export async function handleSettingsUiCommand(
 		return parsed;
 	};
 
+	const promptPercent = async (
+		label: string,
+		currentValue: number,
+		options: { allowZero: boolean },
+	): Promise<number | undefined> => {
+		const raw = await ctx.ui.editor(label, String(currentValue));
+		if (raw === undefined) return undefined;
+		const parsed = Number.parseInt(raw.trim(), 10);
+		const min = options.allowZero ? 0 : 1;
+		if (!Number.isInteger(parsed) || parsed < min || parsed > 100) {
+			ctx.ui.notify(`Value must be an integer between ${min} and 100.`, "error");
+			return undefined;
+		}
+		return parsed;
+	};
+
 	const promptModel = async (label: string, currentValue: string): Promise<string | undefined> => {
 		const options = await getModelSelectionOptions(ctx);
 		const selected = await ctx.ui.select(`${label} (current: ${currentValue})`, options);
@@ -291,6 +345,18 @@ export async function handleSettingsUiCommand(
 						: `Cleared ${action} in ${activeScope} override.`,
 					"info",
 				);
+				continue;
+			}
+
+			if (action === "suggestion.strategy") {
+				const currentValue = await getScopedEditorValue("suggestion.strategy", composition.config.suggestion.strategy);
+				const selected = await ctx.ui.select(
+					`Suggestion strategy (${formatScopeName(activeScope)}, current: ${currentValue})`,
+					[...strategyOptions],
+				);
+				if (!selected) continue;
+				await persistence.writeValue(activeScope, action, selected);
+				ctx.ui.notify(`Updated ${action} in ${activeScope} override.`, "info");
 				continue;
 			}
 
@@ -383,6 +449,64 @@ export async function handleSettingsUiCommand(
 						"suggestion.maxRecentUserPromptChars",
 						composition.config.suggestion.maxRecentUserPromptChars,
 					),
+				);
+				if (next === undefined) continue;
+				await persistence.writeValue(activeScope, action, next);
+				ctx.ui.notify(`Updated ${action} in ${activeScope} override.`, "info");
+				continue;
+			}
+
+			if (action === "suggestion.transcriptMaxContextPercent") {
+				const next = await promptPercent(
+					`Transcript max context % (${formatScopeName(activeScope)})`,
+					await getScopedEditorValue(
+						"suggestion.transcriptMaxContextPercent",
+						composition.config.suggestion.transcriptMaxContextPercent,
+					),
+					{ allowZero: false },
+				);
+				if (next === undefined) continue;
+				await persistence.writeValue(activeScope, action, next);
+				ctx.ui.notify(`Updated ${action} in ${activeScope} override.`, "info");
+				continue;
+			}
+
+			if (action === "suggestion.transcriptMaxMessages") {
+				const next = await promptPositiveInt(
+					`Transcript max messages (${formatScopeName(activeScope)})`,
+					await getScopedEditorValue(
+						"suggestion.transcriptMaxMessages",
+						composition.config.suggestion.transcriptMaxMessages,
+					),
+				);
+				if (next === undefined) continue;
+				await persistence.writeValue(activeScope, action, next);
+				ctx.ui.notify(`Updated ${action} in ${activeScope} override.`, "info");
+				continue;
+			}
+
+			if (action === "suggestion.transcriptMaxChars") {
+				const next = await promptPositiveInt(
+					`Transcript max chars (${formatScopeName(activeScope)})`,
+					await getScopedEditorValue(
+						"suggestion.transcriptMaxChars",
+						composition.config.suggestion.transcriptMaxChars,
+					),
+				);
+				if (next === undefined) continue;
+				await persistence.writeValue(activeScope, action, next);
+				ctx.ui.notify(`Updated ${action} in ${activeScope} override.`, "info");
+				continue;
+			}
+
+			if (action === "suggestion.transcriptRolloutPercent") {
+				const next = await promptPercent(
+					`Transcript rollout % (${formatScopeName(activeScope)}; 0 disables transcript steering)`,
+					await getScopedEditorValue(
+						"suggestion.transcriptRolloutPercent",
+						composition.config.suggestion.transcriptRolloutPercent,
+					),
+					{ allowZero: true },
 				);
 				if (next === undefined) continue;
 				await persistence.writeValue(activeScope, action, next);
