@@ -78,11 +78,7 @@ export class PiSuggestionSink implements SuggestionSink {
 				? trimmedEditorText.length === 0
 				: trimmedEditorText.length === 0 || prefixCompatible;
 
-		if (canGhostInEditor) {
-			this.runtime.setSuggestion(text);
-		} else {
-			this.runtime.setSuggestion(undefined);
-		}
+		this.runtime.setSuggestion(text);
 
 		const statusLabel = options?.restore ? "✦ restored prompt suggestion" : "✦ prompt suggestion";
 		const statusHint = canGhostInEditor ? " · Space accepts" : " · ghost hidden";
