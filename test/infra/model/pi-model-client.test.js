@@ -157,6 +157,18 @@ test("PiModelClient surfaces ModelRegistry auth errors", async () => {
 	);
 });
 
+test("PiModelClient falls back to a generic auth error when registry omits one", async () => {
+	const client = createClient();
+	await assert.rejects(
+		() => client.resolveRequestAuth(model, {
+			async getApiKeyAndHeaders() {
+				return { ok: false };
+			},
+		}),
+		/Model authentication failed/,
+	);
+});
+
 test("PiModelClient allows empty text for suggestions", async (t) => {
 	const provider = registerTestProvider({
 		content: [{ type: "text", text: "   " }],
@@ -169,6 +181,19 @@ test("PiModelClient allows empty text for suggestions", async (t) => {
 
 	assert.equal(result.text, "");
 	assert.equal(typeof result.usage?.totalTokens, "number");
+});
+
+test("PiModelClient falls back to thinking blocks when text blocks are absent", async (t) => {
+	const provider = registerTestProvider({
+		content: [{ type: "thinking", thinking: "reasoned next prompt" }],
+		usage: { input: 1, output: 1, cacheRead: 0, cacheWrite: 0, totalTokens: 2, cost: { total: 0 } },
+	});
+	t.after(() => provider.unregister());
+	const client = new PiModelClient(createRuntimeWithModel(provider.model));
+
+	const result = await client.generateSuggestion(createSuggestionContext());
+
+	assert.equal(result.text, "reasoned next prompt");
 });
 
 test("PiModelClient uses claude-bridge global shim when local provider registry cannot resolve it", async (t) => {

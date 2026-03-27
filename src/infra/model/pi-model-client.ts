@@ -123,17 +123,20 @@ function preview(value: string, maxChars: number = 500): string {
 
 function extractText(content: unknown): string {
 	if (!Array.isArray(content)) return "";
+	// First try to extract from text blocks.
+	const textBlocks = content
+		.filter((block) => block && typeof block === "object" && "type" in block && (block as { type?: string }).type === "text")
+		.map((block) => String((block as { text?: unknown }).text ?? ""))
+		.join("\n")
+		.trim();
+	if (textBlocks) return textBlocks;
+	// Fall back to thinking blocks when no text blocks are present.
 	return content
-		.map((block) => {
-			if (block && typeof block === "object" && "type" in block && (block as { type?: string }).type === "text") {
-				return String((block as { text?: unknown }).text ?? "");
-			}
-			return "";
-		})
+		.filter((block) => block && typeof block === "object" && "type" in block && (block as { type?: string }).type === "thinking")
+		.map((block) => String((block as { thinking?: unknown }).thinking ?? ""))
 		.join("\n")
 		.trim();
 }
-
 function isTranscriptSuggestionContext(context: SuggestionModelContext): context is TranscriptSuggestionPromptContext {
 	return "transcriptMessages" in context;
 }
@@ -699,7 +702,7 @@ export class PiModelClient implements ModelClient {
 		if (typeof modelRegistry.getApiKeyAndHeaders === "function") {
 			const auth = await modelRegistry.getApiKeyAndHeaders(model);
 			if (!auth.ok) {
-				throw new Error(auth.error);
+				throw new Error(auth.error || "Model authentication failed");
 			}
 			return {
 				apiKey: auth.apiKey,
