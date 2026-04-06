@@ -4,6 +4,11 @@
 
 ## Unreleased
 
+## 0.3.6 - 2026-04-06
+
+### Fixed
+- Fixed ghost suggestion visibility across interactive UI/context resets by reinstalling the ghost editor when pi recreates the active extension context for the same session.
+
 ## 0.3.5 - 2026-04-03
 
 ### Added
