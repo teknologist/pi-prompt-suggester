@@ -27,6 +27,7 @@ export default function suggester(pi: ExtensionAPI) {
 		const sessionFile = ctx.sessionManager.getSessionFile() ?? null;
 		switch (getGhostEditorSyncAction({
 			state: ghostEditorInstallState,
+			context: ctx,
 			displayMode: composition.config.suggestion.displayMode,
 			sessionFile,
 		})) {
@@ -51,7 +52,7 @@ export default function suggester(pi: ExtensionAPI) {
 				(state) => composition.runtimeRef.setEditorHistoryState(state),
 			),
 		);
-		ghostEditorInstallState = { sessionFile };
+		ghostEditorInstallState = { context: ctx, sessionFile };
 	}
 
 	async function getComposition(): Promise<AppComposition> {
