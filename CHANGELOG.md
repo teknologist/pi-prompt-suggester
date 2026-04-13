@@ -4,6 +4,13 @@
 
 ## Unreleased
 
+## 0.3.7 - 2026-04-13
+
+### Fixed
+- Fixed `session-default` suggester calls with `pi-claude-bridge` by using the bridge's shared global stream shim when the local provider registry cannot resolve `claude-bridge`.
+- Fixed unsupported custom session providers to fail gracefully for suggestions with a one-time warning instead of logging noisy provider-registration errors after every turn.
+- Improved unsupported-provider handling for seeding so users now get a clear actionable error telling them to configure an explicit supported model.
+
 ## 0.3.6 - 2026-04-06
 
 ### Fixed

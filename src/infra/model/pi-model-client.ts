@@ -2,7 +2,7 @@ import { execFile } from "node:child_process";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
-import { completeSimple, type Message, type Model, type UserMessage } from "@mariozechner/pi-ai";
+import { completeSimple, type Message, type Model, type ThinkingLevel as AiThinkingLevel, type UserMessage } from "@mariozechner/pi-ai";
 import type { ExtensionContext } from "@mariozechner/pi-coding-agent";
 import type { ModelClient, ModelInvocationSettings, SuggestionModelContext } from "../../app/ports/model-client.js";
 import type { Logger } from "../../app/ports/logger.js";
@@ -23,6 +23,7 @@ import { renderTranscriptSteeringPrompt } from "../../prompts/transcript-steerin
 
 const execFileAsync = promisify(execFile);
 const IGNORED_DIRS = new Set([".git", "node_modules", ".pi", "dist", "build", "coverage"]);
+const CLAUDE_BRIDGE_STREAM_SIMPLE_KEY = Symbol.for("claude-bridge:activeStreamSimple");
 
 export interface RuntimeContextProvider {
 	getContext(): ExtensionContext | undefined;
@@ -31,6 +32,40 @@ export interface RuntimeContextProvider {
 interface CompletePromptOptions {
 	allowEmptyText?: boolean;
 }
+
+interface ProviderInvocationContext {
+	kind: "suggestion" | "seed";
+	configuredModelRef?: string;
+	sessionId?: string;
+	debugMeta?: Record<string, unknown>;
+	allowEmptyText?: boolean;
+}
+
+interface CompletionResponseLike {
+	content?: unknown;
+	usage?: {
+		input?: number;
+		output?: number;
+		cacheRead?: number;
+		cacheWrite?: number;
+		totalTokens?: number;
+		cost?: {
+			total?: number;
+		};
+	};
+}
+
+type StreamSimpleLike = (
+	model: Model<any>,
+	context: { systemPrompt: string; messages: Message[] },
+	options: {
+		apiKey?: string;
+		headers?: Record<string, string>;
+		reasoning?: AiThinkingLevel;
+		sessionId?: string;
+		onPayload?: (payload: unknown) => Promise<undefined>;
+	},
+) => { result(): Promise<CompletionResponseLike> };
 
 type SeederToolName = "ls" | "find" | "grep" | "read";
 
@@ -57,6 +92,21 @@ class SeederRunError extends Error {
 		public readonly usage: SuggestionUsage,
 	) {
 		super(message);
+	}
+}
+
+class UnsupportedProviderError extends Error {
+	public constructor(
+		public readonly providerApi: string,
+		public readonly model: Model<any>,
+		public readonly configuredModelRef: string | undefined,
+		public readonly invocationKind: "suggestion" | "seed",
+	) {
+		super(
+			invocationKind === "seed"
+				? `Prompt suggester cannot generate a seed with provider '${providerApi}'. Set an explicit supported suggester/seeder model instead of relying on this session provider.`
+				: `Prompt suggester skipped a suggestion because provider '${providerApi}' is not directly compatible with this extension. Set an explicit supported suggester model or switch the session to a supported provider.`,
+		);
 	}
 }
 
@@ -315,6 +365,7 @@ function validateSeedCoverage(draft: SeedDraft): { ok: boolean; reason?: string 
 
 export class PiModelClient implements ModelClient {
 	private readonly cwd: string;
+	private readonly warnedCompatibilityKeys = new Set<string>();
 
 	public constructor(
 		private readonly runtime: RuntimeContextProvider,
@@ -516,29 +567,44 @@ export class PiModelClient implements ModelClient {
 		const messages = typeof messagesOrPrompt === "string"
 			? [{ role: "user", content: [{ type: "text", text: messagesOrPrompt }], timestamp: Date.now() } satisfies UserMessage]
 			: messagesOrPrompt;
-		const response = await completeSimple(
-			model,
-			{
-				systemPrompt:
-					systemPrompt ??
-					"You are the internal model used by pi-prompt-suggester. Follow the user prompt exactly and return only the requested format.",
-				messages,
+		const requestContext = {
+			systemPrompt:
+				systemPrompt ??
+				"You are the internal model used by pi-prompt-suggester. Follow the user prompt exactly and return only the requested format.",
+			messages,
+		};
+		const requestOptions = {
+			apiKey,
+			headers,
+			reasoning: settings?.thinkingLevel,
+			sessionId,
+			onPayload: async (payload: unknown) => {
+				this.logger?.debug("suggestion.provider.payload", {
+					...debugMeta,
+					sessionId,
+					payloadPreview: preview(JSON.stringify(payload), 1000),
+				});
+				return undefined;
 			},
-			{
-				apiKey,
-				headers,
-				reasoning: settings?.thinkingLevel,
+		};
+
+		let response: CompletionResponseLike;
+		try {
+			response = await this.invokeModel(model, requestContext, requestOptions, {
+				kind: options?.allowEmptyText ? "suggestion" : "seed",
+				configuredModelRef: settings?.modelRef,
 				sessionId,
-				onPayload: async (payload) => {
-					this.logger?.debug("suggestion.provider.payload", {
-						...debugMeta,
-						sessionId,
-						payloadPreview: preview(JSON.stringify(payload), 1000),
-					});
-					return undefined;
-				},
-			},
-		);
+				debugMeta,
+				allowEmptyText: options?.allowEmptyText,
+			});
+		} catch (error) {
+			if (error instanceof UnsupportedProviderError && options?.allowEmptyText) {
+				this.warnUnsupportedProviderOnce(error, ctx);
+				return { text: "", usage: undefined };
+			}
+			throw error;
+		}
+
 		const text = extractText(response.content);
 		if (!text && !options?.allowEmptyText) throw new Error("Model returned empty text");
 		return {
@@ -552,6 +618,72 @@ export class PiModelClient implements ModelClient {
 				costTotal: Number(response.usage?.cost?.total ?? 0),
 			},
 		};
+	}
+
+	private async invokeModel(
+		model: Model<any>,
+		context: { systemPrompt: string; messages: Message[] },
+		options: {
+			apiKey?: string;
+			headers?: Record<string, string>;
+			reasoning?: AiThinkingLevel;
+			sessionId?: string;
+			onPayload?: (payload: unknown) => Promise<undefined>;
+		},
+		invocation: ProviderInvocationContext,
+	): Promise<CompletionResponseLike> {
+		const claudeBridgeStream = this.getClaudeBridgeStreamSimple();
+		if (model.api === "claude-bridge" && claudeBridgeStream) {
+			this.logger?.debug("suggestion.provider.compat_shim", {
+				providerApi: model.api,
+				provider: model.provider,
+				model: model.id,
+				configuredModelRef: invocation.configuredModelRef,
+				kind: invocation.kind,
+			});
+			return await claudeBridgeStream(model, context, options).result();
+		}
+
+		try {
+			return await completeSimple(model, context, options);
+		} catch (error) {
+			if (this.isMissingProviderRegistrationError(error, model.api)) {
+				throw new UnsupportedProviderError(model.api, model, invocation.configuredModelRef, invocation.kind);
+			}
+			throw error;
+		}
+	}
+
+	private getClaudeBridgeStreamSimple(): StreamSimpleLike | undefined {
+		const value = (globalThis as Record<symbol, unknown>)[CLAUDE_BRIDGE_STREAM_SIMPLE_KEY];
+		return typeof value === "function" ? (value as StreamSimpleLike) : undefined;
+	}
+
+	private isMissingProviderRegistrationError(error: unknown, api: string): boolean {
+		return error instanceof Error && error.message.includes(`No API provider registered for api: ${api}`);
+	}
+
+	private warnUnsupportedProviderOnce(error: UnsupportedProviderError, ctx: ExtensionContext): void {
+		const configuredModelRef = error.configuredModelRef?.trim() || "session-default";
+		const key = `${error.invocationKind}:${error.providerApi}:${configuredModelRef}`;
+		if (this.warnedCompatibilityKeys.has(key)) return;
+		this.warnedCompatibilityKeys.add(key);
+
+		this.logger?.warn("suggestion.provider.incompatible", {
+			providerApi: error.providerApi,
+			provider: error.model.provider,
+			model: error.model.id,
+			configuredModelRef,
+			resolution:
+				"Set /suggester model suggester <supported-provider/model> or switch the session to a provider that this extension can call directly.",
+		});
+
+		if (ctx.hasUI) {
+			ctx.ui.notify(
+				`Prompt suggester skipped this turn because provider '${error.providerApi}' isn't directly compatible. Set /suggester model suggester <supported-provider/model> to use an explicit model.`,
+				"warning",
+			);
+		}
 	}
 
 	private async resolveRequestAuth(
