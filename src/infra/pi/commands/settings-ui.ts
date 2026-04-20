@@ -1,10 +1,12 @@
 import { Container, SelectList, Text } from "@mariozechner/pi-tui";
 import type { ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
+import type { GhostAcceptKey } from "../../../config/types.js";
 import type { AppComposition } from "../../../composition/root.js";
 import { SuggesterConfigPersistence } from "./config-persistence.js";
 import { resolveModelRef, SESSION_DEFAULT, THINKING_LEVELS, type ConfigScope, summarizeInstruction } from "./shared.js";
 import { manageVariantsUi, runAbTestingUi, showAbStats } from "./ab-testing.js";
 import { showModelSelector } from "./model-selector.js";
+import { formatGhostAcceptKeys } from "../ghost-accept-keys.js";
 import { isSuggestionDisplayMode, usesGhostEditor } from "../suggestion-display-mode.js";
 
 export async function handleSettingsUiCommand(
@@ -37,6 +39,11 @@ export async function handleSettingsUiCommand(
 		const overrideValue = await persistence.readOverrideValue(activeScope, configPath);
 		if (overrideValue === undefined) return `inherit → ${formatValue(effectiveValue)}`;
 		return `${formatValue(overrideValue)} (${formatScopeName(activeScope).toLowerCase()})`;
+	};
+	const describeScopedGhostAcceptKeys = async (): Promise<string> => {
+		const overrideValue = await persistence.readOverrideValue(activeScope, "suggestion.ghostAcceptKeys");
+		if (overrideValue === undefined) return `inherit → ${formatGhostAcceptKeys(composition.config.suggestion.ghostAcceptKeys)}`;
+		return `${formatGhostAcceptKeys(Array.isArray(overrideValue) ? overrideValue as GhostAcceptKey[] : undefined)} (${formatScopeName(activeScope).toLowerCase()})`;
 	};
 	const getScopedEditorValue = async <T>(configPath: string, effectiveValue: T): Promise<T> => {
 		const overrideValue = await persistence.readOverrideValue(activeScope, configPath);
@@ -145,6 +152,11 @@ export async function handleSettingsUiCommand(
 					"suggestion.displayMode",
 					composition.config.suggestion.displayMode,
 				),
+			},
+			{
+				value: "suggestion.ghostAcceptKeys",
+				label: "Ghost accept keys",
+				description: await describeScopedGhostAcceptKeys(),
 			},
 			{
 				value: "suggestion.prefillOnlyWhenEditorEmpty",
@@ -422,6 +434,26 @@ export async function handleSettingsUiCommand(
 						: "Suggestions will be shown in the widget, leaving the default editor untouched.",
 					"info",
 				);
+				continue;
+			}
+
+			if (action === "suggestion.ghostAcceptKeys") {
+				const currentValue = await getScopedEditorValue(
+					"suggestion.ghostAcceptKeys",
+					composition.config.suggestion.ghostAcceptKeys,
+				);
+				const selected = await ctx.ui.select(
+					`Ghost accept keys (${formatScopeName(activeScope)}, current: ${formatGhostAcceptKeys(currentValue)})`,
+					["Space", "Right", "Space + Right"],
+				);
+				if (!selected) continue;
+				const next = selected === "Space"
+					? ["space"]
+					: selected === "Right"
+						? ["right"]
+						: ["space", "right"];
+				await persistence.writeValue(activeScope, action, next);
+				ctx.ui.notify(`Updated ${action} in ${activeScope} override.`, "info");
 				continue;
 			}
 
