@@ -44,6 +44,20 @@ function createEditor(store, { text = "", suggestion, ghostAcceptKeys = ["space"
 	return editor;
 }
 
+function asyncAutocompleteProvider(items = [{ value: "test", label: "test" }]) {
+	return {
+		getSuggestions() {
+			return Promise.resolve({ items, prefix: "t" });
+		},
+		applyCompletion(lines, cursorLine, cursorCol) {
+			return { lines, cursorLine, cursorCol };
+		},
+		shouldTriggerFileCompletion() {
+			return true;
+		},
+	};
+}
+
 test("restores submitted prompt history after ghost editor swaps", () => {
 	const store = createHistoryStore();
 	const firstEditor = createEditor(store);
@@ -88,4 +102,14 @@ test("accepts ghost suggestion with right arrow when configured", () => {
 	editor.handleInput("\x1b[C");
 
 	assert.equal(editor.getText(), "hello world");
+});
+
+test("does not crash when pi passes an async autocomplete provider", () => {
+	const store = createHistoryStore();
+	const editor = createEditor(store);
+	editor.setAutocompleteProvider(asyncAutocompleteProvider());
+
+	assert.doesNotThrow(() => {
+		editor.handleInput("/");
+	});
 });
