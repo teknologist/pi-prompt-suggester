@@ -81,7 +81,7 @@ Behavior:
 ## 4) UI behavior
 
 - Suggestions can ghost in the editor when safe (idle, no pending messages, editor-empty policy; multiline requires an empty editor)
-- Space-to-accept when the editor is empty
+- Ghost suggestions accept on configured keys when the editor is empty (`Space` by default; `Right` also supported)
 - Non-compatible cases hide the ghost suggestion; the suggestion text is never moved into the below-editor widget
 - The stock pi footer is preserved
 - Compact suggester info uses status lines

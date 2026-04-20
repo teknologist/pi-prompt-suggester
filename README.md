@@ -62,6 +62,7 @@ This is the main UI for normal users. It lets you:
 - choose custom suggester/seeder models
 - choose custom suggester/seeder thinking levels
 - customize the maximum suggested-prompt length
+- choose which ghost-editor key accepts a suggestion
 - tune common behavior settings
 - reset overrides
 
@@ -69,7 +70,8 @@ This is the main UI for normal users. It lets you:
 
 - after an assistant completion, the extension may suggest the next user prompt
 - when the editor is empty and the suggestion is compatible, it appears as ghost text
-- press `Space` on an empty editor to accept the full suggestion
+- by default, press `Space` on an empty editor to accept the full suggestion
+- you can change the ghost accept key in `/suggesterSettings` or via `suggestion.ghostAcceptKeys`
 
 ### Common commands
 
@@ -91,6 +93,11 @@ Most users do not need these, but they are available:
 
 The most useful settings are the custom instruction, custom suggester/seeder models, custom suggester/seeder thinking levels, and the maximum suggested-prompt length.
 
+You can also configure which key accepts ghost suggestions. Supported values are:
+- `"space"`
+- `"right"`
+- or both
+
 You can edit them via:
 - `/suggesterSettings`
 
@@ -99,6 +106,17 @@ Or:
 - `/suggester model ...`
 - `/suggester thinking ...`
 - `/suggester config set suggestion.maxSuggestionChars <number>`
+- `/suggester config set suggestion.ghostAcceptKeys ["space","right"]`
+
+Example:
+
+```json
+{
+  "suggestion": {
+    "ghostAcceptKeys": ["space", "right"]
+  }
+}
+```
 
 Overrides can be stored at:
 - user: `~/.pi/suggester/config.json`
