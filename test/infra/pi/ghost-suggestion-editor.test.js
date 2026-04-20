@@ -14,7 +14,7 @@ function createHistoryStore() {
 	};
 }
 
-function createEditor(store, text = "") {
+function createEditor(store, { text = "", suggestion, ghostAcceptKeys = ["space"] } = {}) {
 	const tui = {
 		terminal: { rows: 24 },
 		requestRender() {},
@@ -34,8 +34,9 @@ function createEditor(store, text = "") {
 		tui,
 		theme,
 		keybindings,
-		() => undefined,
-		() => 0,
+		() => suggestion,
+		() => 1,
+		ghostAcceptKeys,
 		() => store.get(),
 		(state) => store.set(state),
 	);
@@ -65,8 +66,26 @@ test("preserves active history navigation state across ghost editor swaps", () =
 	firstEditor.handleInput("\x1b[A");
 	assert.equal(firstEditor.getText(), "latest prompt");
 
-	const swappedEditor = createEditor(store, firstEditor.getText());
+	const swappedEditor = createEditor(store, { text: firstEditor.getText() });
 	swappedEditor.handleInput("\x1b[B");
 
 	assert.equal(swappedEditor.getText(), "");
+});
+
+test("accepts ghost suggestion with Space by default", () => {
+	const store = createHistoryStore();
+	const editor = createEditor(store, { suggestion: "hello world" });
+
+	editor.handleInput(" ");
+
+	assert.equal(editor.getText(), "hello world");
+});
+
+test("accepts ghost suggestion with right arrow when configured", () => {
+	const store = createHistoryStore();
+	const editor = createEditor(store, { suggestion: "hello world", ghostAcceptKeys: ["right"] });
+
+	editor.handleInput("\x1b[C");
+
+	assert.equal(editor.getText(), "hello world");
 });

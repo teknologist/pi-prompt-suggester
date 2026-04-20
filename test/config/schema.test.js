@@ -23,6 +23,44 @@ test("validateConfig rejects unknown keys and invalid values", () => {
 		}),
 		false,
 	);
+	assert.equal(
+		validateConfig({
+			...defaultConfig,
+			suggestion: { ...defaultConfig.suggestion, ghostAcceptKeys: [] },
+		}),
+		false,
+	);
+	assert.equal(
+		validateConfig({
+			...defaultConfig,
+			suggestion: { ...defaultConfig.suggestion, ghostAcceptKeys: ["space", "tab"] },
+		}),
+		false,
+	);
+});
+
+test("validateConfig accepts supported ghost accept key combinations", () => {
+	assert.equal(
+		validateConfig({
+			...defaultConfig,
+			suggestion: { ...defaultConfig.suggestion, ghostAcceptKeys: ["space"] },
+		}),
+		true,
+	);
+	assert.equal(
+		validateConfig({
+			...defaultConfig,
+			suggestion: { ...defaultConfig.suggestion, ghostAcceptKeys: ["right"] },
+		}),
+		true,
+	);
+	assert.equal(
+		validateConfig({
+			...defaultConfig,
+			suggestion: { ...defaultConfig.suggestion, ghostAcceptKeys: ["space", "right"] },
+		}),
+		true,
+	);
 });
 
 test("normalizeOverrideConfig drops invalid fields and preserves valid overrides", () => {
@@ -31,6 +69,7 @@ test("normalizeOverrideConfig drops invalid fields and preserves valid overrides
 			schemaVersion: defaultConfig.schemaVersion,
 			suggestion: {
 				maxSuggestionChars: 333,
+				ghostAcceptKeys: ["space", "right"],
 				maxRecentUserPrompts: -5,
 				unknown: true,
 			},
@@ -44,7 +83,25 @@ test("normalizeOverrideConfig drops invalid fields and preserves valid overrides
 	assert.deepEqual(config, {
 		schemaVersion: defaultConfig.schemaVersion,
 		suggestion: {
+			ghostAcceptKeys: ["space", "right"],
 			maxSuggestionChars: 333,
 		},
+	});
+});
+
+test("normalizeOverrideConfig drops invalid ghost accept key overrides", () => {
+	const { config, changed } = normalizeOverrideConfig(
+		{
+			schemaVersion: defaultConfig.schemaVersion,
+			suggestion: {
+				ghostAcceptKeys: ["space", "space"],
+			},
+		},
+		defaultConfig,
+	);
+
+	assert.equal(changed, true);
+	assert.deepEqual(config, {
+		schemaVersion: defaultConfig.schemaVersion,
 	});
 });
