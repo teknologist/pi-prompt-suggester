@@ -1,5 +1,6 @@
 import { CURRENT_CONFIG_SCHEMA_VERSION } from "./migrations.js";
 import type {
+	GhostAcceptKey,
 	InferenceConfig,
 	LoggingConfig,
 	PromptSuggesterConfig,
@@ -53,6 +54,14 @@ function isSuggestionDisplayMode(value: unknown): boolean {
 	return ["ghost", "widget"].includes(String(value));
 }
 
+function isGhostAcceptKey(value: unknown): value is GhostAcceptKey {
+	return ["space", "right"].includes(String(value));
+}
+
+function isGhostAcceptKeys(value: unknown): value is GhostAcceptKey[] {
+	return Array.isArray(value) && value.length > 0 && value.every((entry) => isGhostAcceptKey(entry)) && new Set(value).size === value.length;
+}
+
 function isSchemaVersion(value: unknown): boolean {
 	return typeof value === "number" && Number.isInteger(value) && value === CURRENT_CONFIG_SCHEMA_VERSION;
 }
@@ -94,6 +103,7 @@ const suggestionValidators: ValidatorMap<SuggestionConfig> = {
 	customInstruction: (value) => typeof value === "string",
 	fastPathContinueOnError: isBoolean,
 	displayMode: isSuggestionDisplayMode,
+	ghostAcceptKeys: isGhostAcceptKeys,
 	maxAssistantTurnChars: isPositiveInteger,
 	maxRecentUserPrompts: isPositiveInteger,
 	maxRecentUserPromptChars: isPositiveInteger,
@@ -117,6 +127,7 @@ const suggestionShape: SuggestionConfig = {
 	customInstruction: "",
 	fastPathContinueOnError: true,
 	displayMode: "ghost",
+	ghostAcceptKeys: ["space"],
 	maxAssistantTurnChars: 1,
 	maxRecentUserPrompts: 1,
 	maxRecentUserPromptChars: 1,

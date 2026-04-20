@@ -1,5 +1,7 @@
 import { CustomEditor } from "@mariozechner/pi-coding-agent";
-import { Key, matchesKey, truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@mariozechner/pi-tui";
+import { truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@mariozechner/pi-tui";
+import type { GhostAcceptKey } from "../../config/types.js";
+import { matchesGhostAcceptKey } from "./ghost-accept-keys.js";
 import type { EditorHistoryState } from "./runtime-ref.js";
 
 const GHOST_COLOR = "\x1b[38;5;244m";
@@ -34,6 +36,7 @@ export class GhostSuggestionEditor extends CustomEditor {
 		keybindings: ConstructorParameters<typeof CustomEditor>[2],
 		private readonly getSuggestion: () => string | undefined,
 		private readonly getSuggestionRevision: () => number,
+		private readonly ghostAcceptKeys: readonly GhostAcceptKey[],
 		private readonly getHistoryState: () => EditorHistoryState,
 		private readonly setHistoryState: (state: EditorHistoryState) => void,
 	) {
@@ -44,10 +47,10 @@ export class GhostSuggestionEditor extends CustomEditor {
 
 	public override handleInput(data: string): void {
 		const ghost = this.getGhostState();
-		// Accept ghost suggestion with Space when the editor is still empty.
+		// Accept ghost suggestion with a configured shortcut when the editor is still empty.
 		// Any other key should hide ghost mode and reveal normal editor UI behavior.
 		if (ghost && ghost.text.length === 0) {
-			if (matchesKey(data, Key.space)) {
+			if (matchesGhostAcceptKey(data, this.ghostAcceptKeys)) {
 				this.setText(ghost.suggestion);
 				return;
 			}

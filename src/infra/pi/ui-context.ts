@@ -22,6 +22,7 @@ export interface UiContextLike {
 	setPanelLogStatus(status: WidgetLogStatus | undefined): void;
 	getSuggesterModelDisplay(): string | undefined;
 	suggestionDisplayMode: PromptSuggesterConfig["suggestion"]["displayMode"];
+	ghostAcceptKeys: PromptSuggesterConfig["suggestion"]["ghostAcceptKeys"];
 	prefillOnlyWhenEditorEmpty: boolean;
 	showUsageInPanel: boolean;
 	showPanelStatus: boolean;
@@ -56,6 +57,9 @@ export function createUiContext(params: {
 		},
 		get suggestionDisplayMode() {
 			return config.suggestion.displayMode;
+		},
+		get ghostAcceptKeys() {
+			return config.suggestion.ghostAcceptKeys;
 		},
 		get prefillOnlyWhenEditorEmpty() {
 			return config.suggestion.prefillOnlyWhenEditorEmpty;

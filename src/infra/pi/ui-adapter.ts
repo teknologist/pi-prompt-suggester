@@ -131,6 +131,7 @@ export class PiSuggestionSink implements SuggestionSink {
 			displayMode: this.runtime.suggestionDisplayMode,
 			restored: options?.restore,
 			canGhostInEditor,
+			ghostAcceptKeys: this.runtime.ghostAcceptKeys,
 		}));
 		refreshSuggesterUi(this.runtime);
 	}

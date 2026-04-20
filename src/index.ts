@@ -48,6 +48,7 @@ export default function suggester(pi: ExtensionAPI) {
 				kb,
 				() => composition.runtimeRef.getSuggestion(),
 				() => composition.runtimeRef.getSuggestionRevision(),
+				composition.config.suggestion.ghostAcceptKeys,
 				() => composition.runtimeRef.getEditorHistoryState(),
 				(state) => composition.runtimeRef.setEditorHistoryState(state),
 			),
