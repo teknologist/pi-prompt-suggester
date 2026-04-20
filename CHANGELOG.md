@@ -4,6 +4,15 @@
 
 ## Unreleased
 
+## 0.3.8 - 2026-04-20
+
+### Added
+- Added configurable ghost suggestion accept keys so inline suggestions can now be accepted with `Space`, `Right`, or both.
+- Added a `/suggesterSettings` control for choosing the ghost suggestion accept key without editing JSON manually.
+
+### Fixed
+- Fixed the packaged default config schema version so the shipped defaults validate correctly with the new ghost accept key setting.
+
 ## 0.3.7 - 2026-04-13
 
 ### Fixed
