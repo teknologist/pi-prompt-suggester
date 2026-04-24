@@ -1,6 +1,7 @@
 import type { ExtensionContext } from "@mariozechner/pi-coding-agent";
 import type { EventLog } from "../../app/ports/event-log.js";
 import type { Logger } from "../../app/ports/logger.js";
+import { isStaleExtensionContextError, withActiveUi } from "../pi/ui-adapter.js";
 
 type Level = "debug" | "info" | "warn" | "error";
 
@@ -68,9 +69,14 @@ export class ConsoleLogger implements Logger {
 		const line = truncate(`[suggester ${level}] ${message}${payload}`, 220);
 		const statusLine = truncate(`[suggester ${level}] ${message}`, 120);
 		const ctx = this.options.getContext?.();
-		this.options.setWidgetLogStatus?.(level === "warn" || level === "error" ? { level, text: statusLine } : undefined);
-		if (ctx?.hasUI && !this.options.setWidgetLogStatus) {
-			const theme = ctx.ui.theme;
+		try {
+			this.options.setWidgetLogStatus?.(level === "warn" || level === "error" ? { level, text: statusLine } : undefined);
+		} catch (error) {
+			if (!isStaleExtensionContextError(error)) throw error;
+		}
+		const renderedToUi = withActiveUi(ctx, (activeCtx) => {
+			if (this.options.setWidgetLogStatus) return false;
+			const theme = activeCtx.ui.theme;
 			const colorized =
 				level === "error"
 					? theme.fg("error", statusLine)
@@ -79,9 +85,10 @@ export class ConsoleLogger implements Logger {
 						: level === "debug"
 							? theme.fg("dim", statusLine)
 							: theme.fg("muted", statusLine);
-			ctx.ui.setStatus(this.statusKey, colorized);
-			return;
-		}
+			activeCtx.ui.setStatus(this.statusKey, colorized);
+			return true;
+		});
+		if (renderedToUi) return;
 
 		if (!this.mirrorToConsoleWhenNoUi) return;
 		if (level === "error") console.error(line);

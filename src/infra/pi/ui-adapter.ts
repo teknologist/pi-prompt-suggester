@@ -8,6 +8,39 @@ import type { UiContextLike } from "./ui-context.js";
 
 export const WIDGET_ACCEPT_SHORTCUT_LABEL = "F2 accepts";
 
+export function isStaleExtensionContextError(error: unknown): boolean {
+	return error instanceof Error && error.message.includes("extension ctx is stale");
+}
+
+export function hasActiveUi(ctx: ExtensionContext | undefined): ctx is ExtensionContext {
+	if (!ctx) return false;
+	try {
+		return ctx.hasUI;
+	} catch (error) {
+		if (isStaleExtensionContextError(error)) return false;
+		throw error;
+	}
+}
+
+export function withActiveUi<T>(ctx: ExtensionContext | undefined, action: (ctx: ExtensionContext) => T): T | undefined {
+	if (!ctx) return undefined;
+	try {
+		if (!ctx.hasUI) return undefined;
+		return action(ctx);
+	} catch (error) {
+		if (isStaleExtensionContextError(error)) return undefined;
+		throw error;
+	}
+}
+
+export function notifyActiveUi(
+	ctx: ExtensionContext | undefined,
+	message: string,
+	level: "info" | "warning" | "error",
+): void {
+	withActiveUi(ctx, (activeCtx) => activeCtx.ui.notify(message, level));
+}
+
 function formatUsage(
 	usage: { suggester: SuggestionUsageStats; seeder: SuggestionUsageStats },
 	suggesterModelDisplay: string | undefined,
@@ -32,62 +65,61 @@ function formatPanelLog(
 }
 
 export function refreshSuggesterUi(runtime: UiContextLike): void {
-	const ctx = runtime.getContext();
-	if (!ctx?.hasUI) return;
+	withActiveUi(runtime.getContext(), (ctx) => {
+		ctx.ui.setStatus("suggester", undefined);
+		ctx.ui.setStatus("suggester-events", undefined);
+		ctx.ui.setStatus("suggester-usage", undefined);
 
-	ctx.ui.setStatus("suggester", undefined);
-	ctx.ui.setStatus("suggester-events", undefined);
-	ctx.ui.setStatus("suggester-usage", undefined);
+		const widgetMode = usesWidgetSuggestion(runtime.suggestionDisplayMode);
+		const suggestionText = widgetMode ? runtime.getSuggestion() : undefined;
+		const suggestionStatus = runtime.showPanelStatus && widgetMode ? runtime.getPanelSuggestionStatus() : undefined;
+		const suggestionHint = suggestionText ? themeHintText(widgetMode) : undefined;
+		const usageStatus = runtime.showUsageInPanel ? runtime.getPanelUsageStatus() : undefined;
+		const logStatus = runtime.getPanelLogStatus();
+		if (!suggestionText && !suggestionStatus && !logStatus && !usageStatus) {
+			ctx.ui.setWidget("suggester-panel", undefined);
+			return;
+		}
 
-	const widgetMode = usesWidgetSuggestion(runtime.suggestionDisplayMode);
-	const suggestionText = widgetMode ? runtime.getSuggestion() : undefined;
-	const suggestionStatus = runtime.showPanelStatus && widgetMode ? runtime.getPanelSuggestionStatus() : undefined;
-	const suggestionHint = suggestionText ? themeHintText(widgetMode) : undefined;
-	const usageStatus = runtime.showUsageInPanel ? runtime.getPanelUsageStatus() : undefined;
-	const logStatus = runtime.getPanelLogStatus();
-	if (!suggestionText && !suggestionStatus && !logStatus && !usageStatus) {
-		ctx.ui.setWidget("suggester-panel", undefined);
-		return;
-	}
-
-	ctx.ui.setWidget(
-		"suggester-panel",
-		(_tui, theme) => ({
-			invalidate() {},
-			render(width: number): string[] {
-				const lines: string[] = [];
-				if (suggestionText) {
-					const sourceLines = suggestionText.split("\n");
-					for (let index = 0; index < sourceLines.length; index += 1) {
-						const prefix = index === 0 ? "✦ " : "  ";
-						const wrapped = wrapTextWithAnsi(theme.fg("accent", `${prefix}${sourceLines[index] ?? ""}`), Math.max(10, width));
-						for (const wrappedLine of wrapped.length > 0 ? wrapped : [theme.fg("accent", prefix.trimEnd())]) {
-							const truncated = truncateToWidth(wrappedLine, Math.max(10, width), "", true);
-							const pad = " ".repeat(Math.max(0, width - visibleWidth(truncated)));
-							lines.push(truncated + pad);
+		ctx.ui.setWidget(
+			"suggester-panel",
+			(_tui, theme) => ({
+				invalidate() {},
+				render(width: number): string[] {
+					const lines: string[] = [];
+					if (suggestionText) {
+						const sourceLines = suggestionText.split("\n");
+						for (let index = 0; index < sourceLines.length; index += 1) {
+							const prefix = index === 0 ? "✦ " : "  ";
+							const wrapped = wrapTextWithAnsi(theme.fg("accent", `${prefix}${sourceLines[index] ?? ""}`), Math.max(10, width));
+							for (const wrappedLine of wrapped.length > 0 ? wrapped : [theme.fg("accent", prefix.trimEnd())]) {
+								const truncated = truncateToWidth(wrappedLine, Math.max(10, width), "", true);
+								const pad = " ".repeat(Math.max(0, width - visibleWidth(truncated)));
+								lines.push(truncated + pad);
+							}
 						}
 					}
-				}
-				const parts: string[] = [];
-				if (suggestionStatus) parts.push(theme.fg("accent", suggestionStatus));
-				if (suggestionHint) parts.push(theme.fg("muted", suggestionHint));
-				if (logStatus) parts.push(formatPanelLog(ctx, logStatus));
-				const line = parts.join(" · ");
-				if (line) {
-					const truncated = truncateToWidth(line, Math.max(10, width), "", true);
-					const pad = " ".repeat(Math.max(0, width - visibleWidth(truncated)));
-					lines.push(truncated + pad);
-				}
-				if (usageStatus) {
-					const truncated = truncateToWidth(theme.fg("dim", usageStatus), Math.max(10, width), "", true);
-					const pad = " ".repeat(Math.max(0, width - visibleWidth(truncated)));
-					lines.push(truncated + pad);
-				}
-				return lines.length > 0 ? lines : [" ".repeat(Math.max(1, width))];
-			},
-		}),
-		{ placement: "belowEditor" },
-	);
+					const parts: string[] = [];
+					if (suggestionStatus) parts.push(theme.fg("accent", suggestionStatus));
+					if (suggestionHint) parts.push(theme.fg("muted", suggestionHint));
+					if (logStatus) parts.push(formatPanelLog(ctx, logStatus));
+					const line = parts.join(" · ");
+					if (line) {
+						const truncated = truncateToWidth(line, Math.max(10, width), "", true);
+						const pad = " ".repeat(Math.max(0, width - visibleWidth(truncated)));
+						lines.push(truncated + pad);
+					}
+					if (usageStatus) {
+						const truncated = truncateToWidth(theme.fg("dim", usageStatus), Math.max(10, width), "", true);
+						const pad = " ".repeat(Math.max(0, width - visibleWidth(truncated)));
+						lines.push(truncated + pad);
+					}
+					return lines.length > 0 ? lines : [" ".repeat(Math.max(1, width))];
+				},
+			}),
+			{ placement: "belowEditor" },
+		);
+	});
 }
 
 function themeHintText(widgetMode: boolean): string | undefined {
@@ -95,17 +127,21 @@ function themeHintText(widgetMode: boolean): string | undefined {
 }
 
 export function acceptWidgetSuggestion(runtime: UiContextLike): "accepted" | "missing-suggestion" | "mismatch" | "unavailable" {
-	const ctx = runtime.getContext();
-	if (!ctx?.hasUI || !usesWidgetSuggestion(runtime.suggestionDisplayMode)) return "unavailable";
+	if (!usesWidgetSuggestion(runtime.suggestionDisplayMode)) return "unavailable";
 	const suggestion = runtime.getSuggestion();
 	if (!suggestion) return "missing-suggestion";
-	const editorText = ctx.ui.getEditorText();
-	if (editorText.length > 0 && !suggestion.startsWith(editorText)) return "mismatch";
-	ctx.ui.setEditorText(suggestion);
+	const result = withActiveUi(runtime.getContext(), (ctx) => {
+		const editorText = ctx.ui.getEditorText();
+		if (editorText.length > 0 && !suggestion.startsWith(editorText)) return "mismatch" as const;
+		ctx.ui.setEditorText(suggestion);
+		return "accepted" as const;
+	});
+	if (!result) return "unavailable";
+	if (result === "mismatch") return result;
 	runtime.setSuggestion(undefined);
 	runtime.setPanelSuggestionStatus(undefined);
 	refreshSuggesterUi(runtime);
-	return "accepted";
+	return result;
 }
 
 export class PiSuggestionSink implements SuggestionSink {
@@ -113,10 +149,8 @@ export class PiSuggestionSink implements SuggestionSink {
 
 	public async showSuggestion(text: string, options?: { restore?: boolean; generationId?: number }): Promise<void> {
 		if (options?.generationId !== undefined && options.generationId !== this.runtime.getEpoch()) return;
-		const ctx = this.runtime.getContext();
-		if (!ctx?.hasUI) return;
-
-		const editorText = ctx.ui.getEditorText();
+		const editorText = withActiveUi(this.runtime.getContext(), (ctx) => ctx.ui.getEditorText());
+		if (editorText === undefined) return;
 		const trimmedEditorText = editorText.trim();
 		const isMultilineSuggestion = text.includes("\n");
 		const prefixCompatible = !editorText.includes("\n") && text.startsWith(editorText);
@@ -145,7 +179,7 @@ export class PiSuggestionSink implements SuggestionSink {
 
 	public async setUsage(usage: { suggester: SuggestionUsageStats; seeder: SuggestionUsageStats }): Promise<void> {
 		const ctx = this.runtime.getContext();
-		if (!ctx?.hasUI) return;
+		if (!hasActiveUi(ctx)) return;
 		if (usage.suggester.calls <= 0 && usage.seeder.calls <= 0) {
 			this.runtime.setPanelUsageStatus(undefined);
 			refreshSuggesterUi(this.runtime);

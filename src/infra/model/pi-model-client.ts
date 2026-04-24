@@ -4,6 +4,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { completeSimple, type Message, type Model, type ThinkingLevel as AiThinkingLevel, type UserMessage } from "@mariozechner/pi-ai";
 import type { ExtensionContext } from "@mariozechner/pi-coding-agent";
+import { notifyActiveUi } from "../pi/ui-adapter.js";
 import type { ModelClient, ModelInvocationSettings, SuggestionModelContext } from "../../app/ports/model-client.js";
 import type { Logger } from "../../app/ports/logger.js";
 import type { SuggestionPromptContext } from "../../app/services/prompt-context-builder.js";
@@ -681,12 +682,11 @@ export class PiModelClient implements ModelClient {
 				"Set /suggester model suggester <supported-provider/model> or switch the session to a provider that this extension can call directly.",
 		});
 
-		if (ctx.hasUI) {
-			ctx.ui.notify(
-				`Prompt suggester skipped this turn because provider '${error.providerApi}' isn't directly compatible. Set /suggester model suggester <supported-provider/model> to use an explicit model.`,
-				"warning",
-			);
-		}
+		notifyActiveUi(
+			ctx,
+			`Prompt suggester skipped this turn because provider '${error.providerApi}' isn't directly compatible. Set /suggester model suggester <supported-provider/model> to use an explicit model.`,
+			"warning",
+		);
 	}
 
 	private async resolveRequestAuth(

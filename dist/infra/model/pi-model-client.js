@@ -3,6 +3,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
 import { completeSimple } from "@mariozechner/pi-ai";
+import { notifyActiveUi } from "../pi/ui-adapter.js";
 import { accumulateUsage, createEmptyUsage } from "../../domain/usage.js";
 import { REQUIRED_SEED_CATEGORIES, } from "../../domain/seed.js";
 import { renderForcedSeederFinalPrompt, renderSeederSystemPrompt, renderSeederUserPrompt } from "../../prompts/seeder-template.js";
@@ -552,9 +553,7 @@ export class PiModelClient {
             configuredModelRef,
             resolution: "Set /suggester model suggester <supported-provider/model> or switch the session to a provider that this extension can call directly.",
         });
-        if (ctx.hasUI) {
-            ctx.ui.notify(`Prompt suggester skipped this turn because provider '${error.providerApi}' isn't directly compatible. Set /suggester model suggester <supported-provider/model> to use an explicit model.`, "warning");
-        }
+        notifyActiveUi(ctx, `Prompt suggester skipped this turn because provider '${error.providerApi}' isn't directly compatible. Set /suggester model suggester <supported-provider/model> to use an explicit model.`, "warning");
     }
     async resolveRequestAuth(model, modelRegistry) {
         if (typeof modelRegistry.getApiKeyAndHeaders === "function") {

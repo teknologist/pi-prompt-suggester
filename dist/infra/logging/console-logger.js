@@ -1,3 +1,4 @@
+import { isStaleExtensionContextError, withActiveUi } from "../pi/ui-adapter.js";
 const LEVEL_ORDER = {
     debug: 10,
     info: 20,
@@ -49,9 +50,17 @@ export class ConsoleLogger {
         const line = truncate(`[suggester ${level}] ${message}${payload}`, 220);
         const statusLine = truncate(`[suggester ${level}] ${message}`, 120);
         const ctx = this.options.getContext?.();
-        this.options.setWidgetLogStatus?.(level === "warn" || level === "error" ? { level, text: statusLine } : undefined);
-        if (ctx?.hasUI && !this.options.setWidgetLogStatus) {
-            const theme = ctx.ui.theme;
+        try {
+            this.options.setWidgetLogStatus?.(level === "warn" || level === "error" ? { level, text: statusLine } : undefined);
+        }
+        catch (error) {
+            if (!isStaleExtensionContextError(error))
+                throw error;
+        }
+        const renderedToUi = withActiveUi(ctx, (activeCtx) => {
+            if (this.options.setWidgetLogStatus)
+                return false;
+            const theme = activeCtx.ui.theme;
             const colorized = level === "error"
                 ? theme.fg("error", statusLine)
                 : level === "warn"
@@ -59,9 +68,11 @@ export class ConsoleLogger {
                     : level === "debug"
                         ? theme.fg("dim", statusLine)
                         : theme.fg("muted", statusLine);
-            ctx.ui.setStatus(this.statusKey, colorized);
+            activeCtx.ui.setStatus(this.statusKey, colorized);
+            return true;
+        });
+        if (renderedToUi)
             return;
-        }
         if (!this.mirrorToConsoleWhenNoUi)
             return;
         if (level === "error")
