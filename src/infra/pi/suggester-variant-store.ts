@@ -2,6 +2,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import type { InferenceDefault, PromptSuggesterConfig, SuggestionStrategy, ThinkingLevel } from "../../config/types.js";
 import { readJsonIfExists, writeJson } from "../storage/json-file.js";
+import { projectSuggesterStateDir } from "./project-state-paths.js";
 
 export interface SuggesterVariant {
 	strategy?: SuggestionStrategy;
@@ -147,16 +148,21 @@ function createEmptyStats(): VariantStatsEntry {
 }
 
 export class SuggesterVariantStore {
-	private readonly filePath: string;
-	private readonly resultsPath: string;
+	private readonly filePath: string | undefined;
+	private readonly resultsPath: string | undefined;
 	private state: VariantFile = DEFAULT_FILE;
 
 	public constructor(private readonly cwd: string = process.cwd()) {
-		this.filePath = path.join(this.cwd, ".pi", "suggester", "variants.json");
-		this.resultsPath = path.join(this.cwd, ".pi", "suggester", "ab-results.ndjson");
+		const stateDir = projectSuggesterStateDir(this.cwd);
+		this.filePath = stateDir ? path.join(stateDir, "variants.json") : undefined;
+		this.resultsPath = stateDir ? path.join(stateDir, "ab-results.ndjson") : undefined;
 	}
 
 	public async init(): Promise<void> {
+		if (!this.filePath) {
+			this.state = DEFAULT_FILE;
+			return;
+		}
 		const raw = await readJsonIfExists(this.filePath);
 		if (raw === undefined) {
 			this.state = DEFAULT_FILE;
@@ -278,11 +284,13 @@ export class SuggesterVariantStore {
 	}
 
 	public async recordResult(record: AbResultRecord): Promise<void> {
+		if (!this.resultsPath) return;
 		await fs.mkdir(path.dirname(this.resultsPath), { recursive: true });
 		await fs.appendFile(this.resultsPath, `${JSON.stringify(record)}\n`, "utf8");
 	}
 
 	public async getStats(): Promise<Record<string, VariantStatsEntry>> {
+		if (!this.resultsPath) return {};
 		let raw = "";
 		try {
 			raw = await fs.readFile(this.resultsPath, "utf8");
@@ -321,6 +329,7 @@ export class SuggesterVariantStore {
 	}
 
 	private async persist(): Promise<void> {
+		if (!this.filePath) return;
 		await writeJson(this.filePath, this.state);
 	}
 }

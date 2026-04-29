@@ -4,9 +4,10 @@ import type { SeedArtifact } from "../../domain/seed.js";
 import { atomicWriteJson } from "./atomic-write.js";
 
 export class JsonSeedStore implements SeedStore {
-	public constructor(private readonly filePath: string) {}
+	public constructor(private readonly filePath: string | undefined) {}
 
 	public async load(): Promise<SeedArtifact | null> {
+		if (!this.filePath) return null;
 		try {
 			const raw = await fs.readFile(this.filePath, "utf8");
 			return JSON.parse(raw) as SeedArtifact;
@@ -17,6 +18,7 @@ export class JsonSeedStore implements SeedStore {
 	}
 
 	public async save(seed: SeedArtifact): Promise<void> {
+		if (!this.filePath) return;
 		await atomicWriteJson(this.filePath, seed);
 	}
 }

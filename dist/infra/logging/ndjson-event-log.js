@@ -34,21 +34,27 @@ export class NdjsonEventLog {
         this.maxValueChars = options.maxValueChars ?? 1200;
     }
     async append(event) {
+        const filePath = this.filePath;
+        if (!filePath)
+            return;
         this.queue = this.queue.then(async () => {
-            const dir = path.dirname(this.filePath);
+            const dir = path.dirname(filePath);
             await fs.mkdir(dir, { recursive: true });
             const payload = {
                 ...event,
                 meta: event.meta ? sanitizeValue(event.meta, this.maxValueChars) : undefined,
             };
-            await fs.appendFile(this.filePath, `${JSON.stringify(payload)}\n`, "utf8");
-            await this.rotateIfNeeded();
+            await fs.appendFile(filePath, `${JSON.stringify(payload)}\n`, "utf8");
+            await this.rotateIfNeeded(filePath);
         });
         await this.queue;
     }
     async readRecent(limit, options) {
+        const filePath = this.filePath;
+        if (!filePath)
+            return [];
         try {
-            const raw = await fs.readFile(this.filePath, "utf8");
+            const raw = await fs.readFile(filePath, "utf8");
             const lines = raw
                 .split(/\r?\n/)
                 .map((line) => line.trim())
@@ -69,11 +75,11 @@ export class NdjsonEventLog {
         catch (error) {
             if (error.code === "ENOENT")
                 return [];
-            throw new Error(`Failed to read event log ${this.filePath}: ${error.message}`);
+            throw new Error(`Failed to read event log ${filePath}: ${error.message}`);
         }
     }
-    async rotateIfNeeded() {
-        const raw = await fs.readFile(this.filePath, "utf8");
+    async rotateIfNeeded(filePath) {
+        const raw = await fs.readFile(filePath, "utf8");
         const lines = raw
             .split(/\r?\n/)
             .map((line) => line.trim())
@@ -81,6 +87,6 @@ export class NdjsonEventLog {
         if (lines.length <= this.maxEntries)
             return;
         const trimmed = `${lines.slice(-this.maxEntries).join("\n")}\n`;
-        await fs.writeFile(this.filePath, trimmed, "utf8");
+        await fs.writeFile(filePath, trimmed, "utf8");
     }
 }

@@ -1,6 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { readJsonIfExists, writeJson } from "../storage/json-file.js";
+import { projectSuggesterStateDir } from "./project-state-paths.js";
 const DEFAULT_VARIANT_NAME = "default";
 const DEFAULT_FILE = {
     activeVariant: DEFAULT_VARIANT_NAME,
@@ -113,10 +114,15 @@ export class SuggesterVariantStore {
     state = DEFAULT_FILE;
     constructor(cwd = process.cwd()) {
         this.cwd = cwd;
-        this.filePath = path.join(this.cwd, ".pi", "suggester", "variants.json");
-        this.resultsPath = path.join(this.cwd, ".pi", "suggester", "ab-results.ndjson");
+        const stateDir = projectSuggesterStateDir(this.cwd);
+        this.filePath = stateDir ? path.join(stateDir, "variants.json") : undefined;
+        this.resultsPath = stateDir ? path.join(stateDir, "ab-results.ndjson") : undefined;
     }
     async init() {
+        if (!this.filePath) {
+            this.state = DEFAULT_FILE;
+            return;
+        }
         const raw = await readJsonIfExists(this.filePath);
         if (raw === undefined) {
             this.state = DEFAULT_FILE;
@@ -247,10 +253,14 @@ export class SuggesterVariantStore {
         await this.persist();
     }
     async recordResult(record) {
+        if (!this.resultsPath)
+            return;
         await fs.mkdir(path.dirname(this.resultsPath), { recursive: true });
         await fs.appendFile(this.resultsPath, `${JSON.stringify(record)}\n`, "utf8");
     }
     async getStats() {
+        if (!this.resultsPath)
+            return {};
         let raw = "";
         try {
             raw = await fs.readFile(this.resultsPath, "utf8");
@@ -295,6 +305,8 @@ export class SuggesterVariantStore {
         return stats;
     }
     async persist() {
+        if (!this.filePath)
+            return;
         await writeJson(this.filePath, this.state);
     }
 }

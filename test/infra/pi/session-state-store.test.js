@@ -1,9 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { SessionStateStore } from "../../../dist/infra/pi/session-state-store.js";
+import { createSessionStorageContext } from "../../../dist/infra/pi/session-storage-context.js";
 import { INITIAL_RUNTIME_STATE } from "../../../dist/domain/state.js";
 
-function createInMemorySessionManager() {
+function createInMemorySessionManager(overrides = {}) {
 	return {
 		getBranch() {
 			return [];
@@ -23,8 +24,20 @@ function createInMemorySessionManager() {
 		getCwd() {
 			return process.cwd();
 		},
+		...overrides,
 	};
 }
+
+test("session storage stays in memory when cwd is filesystem root", async () => {
+	const sessionManager = createInMemorySessionManager({
+		getSessionFile() {
+			return "/tmp/pi-session.jsonl";
+		},
+	});
+	const context = createSessionStorageContext("/", sessionManager);
+	assert.equal(context.persistent, false);
+	assert.equal(context.storageDir, undefined);
+});
 
 test("SessionStateStore persists save/usage state for in-memory sessions", async () => {
 	const store = new SessionStateStore(process.cwd(), () => createInMemorySessionManager());

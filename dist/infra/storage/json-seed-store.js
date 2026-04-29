@@ -6,6 +6,8 @@ export class JsonSeedStore {
         this.filePath = filePath;
     }
     async load() {
+        if (!this.filePath)
+            return null;
         try {
             const raw = await fs.readFile(this.filePath, "utf8");
             return JSON.parse(raw);
@@ -17,6 +19,8 @@ export class JsonSeedStore {
         }
     }
     async save(seed) {
+        if (!this.filePath)
+            return;
         await atomicWriteJson(this.filePath, seed);
     }
 }

@@ -4,6 +4,7 @@ import { Sha256FileHash } from "../infra/hashing/sha256-file-hash.js";
 import { JsonSeedStore } from "../infra/storage/json-seed-store.js";
 import { GitClient } from "../infra/vcs/git-client.js";
 import { StalenessChecker } from "../app/services/staleness-checker.js";
+import { projectSuggesterStateDir } from "../infra/pi/project-state-paths.js";
 
 export async function runStaleCheckScript(): Promise<void> {
 	const cwd = process.cwd();
@@ -14,7 +15,8 @@ export async function runStaleCheckScript(): Promise<void> {
 		vcs: new GitClient(cwd),
 		cwd,
 	});
-	const seedStore = new JsonSeedStore(path.join(cwd, ".pi", "suggester", "seed.json"));
+	const stateDir = projectSuggesterStateDir(cwd);
+	const seedStore = new JsonSeedStore(stateDir ? path.join(stateDir, "seed.json") : undefined);
 	const seed = await seedStore.load();
 	const result = await checker.check(seed);
 	process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);

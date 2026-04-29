@@ -2,10 +2,12 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { FileConfigLoader } from "../../../config/loader.js";
+import { projectSuggesterStateDir } from "../project-state-paths.js";
 import { readObjectJsonIfExists, writeJson } from "../../storage/json-file.js";
 import { setPathValue } from "./shared.js";
 export function projectOverridePath(cwd) {
-    return path.join(cwd, ".pi", "suggester", "config.json");
+    const stateDir = projectSuggesterStateDir(cwd);
+    return stateDir ? path.join(stateDir, "config.json") : "<project overrides disabled at filesystem root>";
 }
 export function userOverridePath(homeDir = os.homedir()) {
     return path.join(homeDir, ".pi", "suggester", "config.json");
@@ -20,12 +22,19 @@ export class SuggesterConfigPersistence {
     overridePathForScope(scope) {
         return scope === "user" ? userOverridePath() : projectOverridePath(this.ctx.cwd);
     }
+    overrideFileForScope(scope) {
+        if (scope === "user")
+            return userOverridePath();
+        const stateDir = projectSuggesterStateDir(this.ctx.cwd);
+        return stateDir ? path.join(stateDir, "config.json") : undefined;
+    }
     async refreshCompositionConfig() {
         const next = await new FileConfigLoader(this.ctx.cwd).load();
         Object.assign(this.composition.config, next);
     }
     async readOverride(scope) {
-        return await readObjectJsonIfExists(this.overridePathForScope(scope));
+        const filePath = this.overrideFileForScope(scope);
+        return filePath ? await readObjectJsonIfExists(filePath) : {};
     }
     async readOverrideValue(scope, configPath) {
         const raw = await this.readOverride(scope);
@@ -43,7 +52,10 @@ export class SuggesterConfigPersistence {
         return typeof value === "string" ? value : "";
     }
     async writeValue(scope, configPath, value) {
-        const filePath = this.overridePathForScope(scope);
+        const filePath = this.overrideFileForScope(scope);
+        if (!filePath) {
+            throw new Error("Project config overrides are disabled when pi runs from the filesystem root.");
+        }
         let previousRaw;
         try {
             previousRaw = await fs.readFile(filePath, "utf8");
@@ -96,7 +108,9 @@ export class SuggesterConfigPersistence {
     async resetScopes(scopes) {
         const removed = [];
         for (const scope of scopes) {
-            const target = this.overridePathForScope(scope);
+            const target = this.overrideFileForScope(scope);
+            if (!target)
+                continue;
             try {
                 await fs.rm(target, { force: true });
                 removed.push(target);

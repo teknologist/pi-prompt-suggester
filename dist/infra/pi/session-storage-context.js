@@ -1,4 +1,5 @@
 import path from "node:path";
+import { projectSuggesterStateDir } from "./project-state-paths.js";
 import { ROOT_STATE_KEY } from "./session-state-types.js";
 export function normalizeSessionKey(value) {
     return value.replace(/[^A-Za-z0-9._-]/g, "_");
@@ -22,7 +23,17 @@ export function createSessionStorageContext(cwd, sessionManager) {
             persistent: false,
         };
     }
-    const storageDir = path.join(cwd, ".pi", "suggester", "sessions", sessionId);
+    const stateDir = projectSuggesterStateDir(cwd);
+    if (!stateDir) {
+        return {
+            sessionId,
+            sessionFile,
+            lookupKeys,
+            currentKey,
+            persistent: false,
+        };
+    }
+    const storageDir = path.join(stateDir, "sessions", sessionId);
     return {
         sessionId,
         sessionFile,
