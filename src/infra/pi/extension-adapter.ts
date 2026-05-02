@@ -4,9 +4,7 @@ import type {
 	ExtensionCommandContext,
 	ExtensionContext,
 	InputEvent,
-	SessionForkEvent,
 	SessionStartEvent,
-	SessionSwitchEvent,
 	SessionTreeEvent,
 } from "@mariozechner/pi-coding-agent";
 import type { TurnContext } from "../../domain/suggestion.js";
@@ -33,6 +31,19 @@ async function handleSessionEvent(
 	handler: (ctx: ExtensionContext) => Promise<void>,
 ): Promise<void> {
 	await handler(ctx);
+}
+
+function shouldHandleSessionStart(reason: SessionStartEvent["reason"]): boolean {
+	switch (reason) {
+		case "startup":
+		case "reload":
+		case "new":
+		case "resume":
+		case "fork":
+			return true;
+		default:
+			return false;
+	}
 }
 
 function extractRecentUserPrompts(branchMessages: unknown[]): string[] {
@@ -81,16 +92,12 @@ export class PiExtensionAdapter {
 	) {}
 
 	public register(): void {
-		this.pi.on("session_start", async (_event: SessionStartEvent, ctx) => {
-			await handleSessionEvent(ctx, this.wiring.onSessionStart);
+		this.pi.on("session_start", async (event: SessionStartEvent, ctx) => {
+			if (shouldHandleSessionStart(event.reason)) {
+				await handleSessionEvent(ctx, this.wiring.onSessionStart);
+			}
 		});
 		this.pi.on("session_tree", async (_event: SessionTreeEvent, ctx) => {
-			await handleSessionEvent(ctx, this.wiring.onSessionStart);
-		});
-		this.pi.on("session_fork", async (_event: SessionForkEvent, ctx) => {
-			await handleSessionEvent(ctx, this.wiring.onSessionStart);
-		});
-		this.pi.on("session_switch", async (_event: SessionSwitchEvent, ctx) => {
 			await handleSessionEvent(ctx, this.wiring.onSessionStart);
 		});
 

@@ -2,6 +2,18 @@ import { buildTurnContext } from "../../app/services/conversation-signals.js";
 async function handleSessionEvent(ctx, handler) {
     await handler(ctx);
 }
+function shouldHandleSessionStart(reason) {
+    switch (reason) {
+        case "startup":
+        case "reload":
+        case "new":
+        case "resume":
+        case "fork":
+            return true;
+        default:
+            return false;
+    }
+}
 function extractRecentUserPrompts(branchMessages) {
     return [...branchMessages]
         .reverse()
@@ -46,16 +58,12 @@ export class PiExtensionAdapter {
         this.wiring = wiring;
     }
     register() {
-        this.pi.on("session_start", async (_event, ctx) => {
-            await handleSessionEvent(ctx, this.wiring.onSessionStart);
+        this.pi.on("session_start", async (event, ctx) => {
+            if (shouldHandleSessionStart(event.reason)) {
+                await handleSessionEvent(ctx, this.wiring.onSessionStart);
+            }
         });
         this.pi.on("session_tree", async (_event, ctx) => {
-            await handleSessionEvent(ctx, this.wiring.onSessionStart);
-        });
-        this.pi.on("session_fork", async (_event, ctx) => {
-            await handleSessionEvent(ctx, this.wiring.onSessionStart);
-        });
-        this.pi.on("session_switch", async (_event, ctx) => {
             await handleSessionEvent(ctx, this.wiring.onSessionStart);
         });
         this.pi.on("agent_end", async (event, ctx) => {
