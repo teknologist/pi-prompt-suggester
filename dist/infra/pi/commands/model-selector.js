@@ -1,4 +1,4 @@
-import { Container, Key, matchesKey, SelectList, Spacer, Text } from "@mariozechner/pi-tui";
+import { Container, Key, matchesKey, SelectList, Spacer, Text } from "@earendil-works/pi-tui";
 function isCurrentModel(model, currentValue) {
     if (!currentValue)
         return false;

@@ -1,5 +1,5 @@
-import { CustomEditor } from "@mariozechner/pi-coding-agent";
-import { truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@mariozechner/pi-tui";
+import { CustomEditor } from "@earendil-works/pi-coding-agent";
+import { truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
 import { matchesGhostAcceptKey } from "./ghost-accept-keys.js";
 const GHOST_COLOR = "\x1b[38;5;244m";
 const RESET = "\x1b[0m";

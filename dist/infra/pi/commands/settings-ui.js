@@ -1,4 +1,4 @@
-import { Container, SelectList, Text } from "@mariozechner/pi-tui";
+import { Container, SelectList, Text } from "@earendil-works/pi-tui";
 import { SuggesterConfigPersistence } from "./config-persistence.js";
 import { resolveModelRef, SESSION_DEFAULT, THINKING_LEVELS, summarizeInstruction } from "./shared.js";
 import { manageVariantsUi, runAbTestingUi, showAbStats } from "./ab-testing.js";

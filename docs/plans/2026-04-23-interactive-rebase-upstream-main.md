@@ -110,7 +110,7 @@ If upstream picker behavior is still insufficient after the rebase, do a fresh c
    - Keep upstream package versioning/release state.
    - Do **not** downgrade or restore old `0.63.1` pinning blindly.
    - Re-apply only the minimal compatibility changes that are still justified after reading upstream current manifest.
-   - Preserve any required explicit `@mariozechner/pi-tui` dependency/peer entry **only if** upstream current manifest still needs it for build/runtime correctness.
+   - Preserve any required explicit `@earendil-works/pi-tui` dependency/peer entry **only if** upstream current manifest still needs it for build/runtime correctness.
 
 2. **`package-lock.json`**
    - Resolve in favor of the manifest you keep.

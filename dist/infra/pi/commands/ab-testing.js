@@ -1,4 +1,4 @@
-import { SelectList, wrapTextWithAnsi } from "@mariozechner/pi-tui";
+import { SelectList, wrapTextWithAnsi } from "@earendil-works/pi-tui";
 import { PromptContextBuilder } from "../../../app/services/prompt-context-builder.js";
 import { TranscriptPromptContextBuilder } from "../../../app/services/transcript-prompt-context-builder.js";
 import { SuggestionEngine } from "../../../app/services/suggestion-engine.js";

@@ -6,7 +6,7 @@ import type {
 	InputEvent,
 	SessionStartEvent,
 	SessionTreeEvent,
-} from "@mariozechner/pi-coding-agent";
+} from "@earendil-works/pi-coding-agent";
 import type { TurnContext } from "../../domain/suggestion.js";
 import { buildTurnContext } from "../../app/services/conversation-signals.js";
 

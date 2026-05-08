@@ -2,7 +2,7 @@ import { execFile } from "node:child_process";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
-import { completeSimple } from "@mariozechner/pi-ai";
+import { completeSimple } from "@earendil-works/pi-ai";
 import { notifyActiveUi } from "../pi/ui-adapter.js";
 import { accumulateUsage, createEmptyUsage } from "../../domain/usage.js";
 import { REQUIRED_SEED_CATEGORIES, } from "../../domain/seed.js";

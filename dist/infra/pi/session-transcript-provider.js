@@ -1,4 +1,4 @@
-import { buildSessionContext } from "@mariozechner/pi-coding-agent";
+import { buildSessionContext } from "@earendil-works/pi-coding-agent";
 function cloneMessages(messages) {
     return JSON.parse(JSON.stringify(messages));
 }
