@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { formatTokens, getConfiguredModelDisplay } from "../../../dist/infra/pi/display.js";
+import { formatTokens, getConfiguredModelDisplay } from "../../../src/infra/pi/display.js";
 
 const ctx = {
 	model: { provider: "openai", id: "gpt-5" },

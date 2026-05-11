@@ -5,7 +5,7 @@ import {
 	PiSuggestionSink,
 	refreshSuggesterUi,
 	WIDGET_ACCEPT_SHORTCUT_LABEL,
-} from "../../../dist/infra/pi/ui-adapter.js";
+} from "../../../src/infra/pi/ui-adapter.js";
 
 function createTheme() {
 	return {

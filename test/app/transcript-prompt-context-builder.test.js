@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { TranscriptPromptContextBuilder } from "../../dist/app/services/transcript-prompt-context-builder.js";
+import { TranscriptPromptContextBuilder } from "../../src/app/services/transcript-prompt-context-builder.js";
 
 const baseConfig = {
 	schemaVersion: 7,

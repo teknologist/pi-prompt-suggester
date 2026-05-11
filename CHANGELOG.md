@@ -4,6 +4,11 @@
 
 ## Unreleased
 
+## 0.3.9 - 2026-05-08
+
+### Fixed
+- Updated pi core imports and peer dependencies to the new `@earendil-works/*` package scope and adjusted session lifecycle handling for current pi releases.
+
 ## 0.3.8 - 2026-04-20
 
 ### Added
@@ -43,7 +48,7 @@
 ## 0.3.3 - 2026-03-31
 
 ### Fixed
-- Fixed compatibility with newer `@earendil-works/pi-coding-agent` releases that replaced `ModelRegistry.getApiKey()` with `getApiKeyAndHeaders()`, including forwarding resolved request headers to provider calls.
+- Fixed compatibility with newer `@mariozechner/pi-coding-agent` releases that replaced `ModelRegistry.getApiKey()` with `getApiKeyAndHeaders()`, including forwarding resolved request headers to provider calls.
 - Added regression coverage for both the new auth API and the legacy fallback path so auth resolution keeps working across pi versions.
 
 ## 0.3.2 - 2026-03-25

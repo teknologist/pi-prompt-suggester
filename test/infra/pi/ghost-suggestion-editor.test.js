@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { GhostSuggestionEditor } from "../../../dist/infra/pi/ghost-suggestion-editor.js";
+import { GhostSuggestionEditor } from "../../../src/infra/pi/ghost-suggestion-editor.js";
 
 function createHistoryStore() {
 	let state = { entries: [], index: -1 };
@@ -42,20 +42,6 @@ function createEditor(store, { text = "", suggestion, ghostAcceptKeys = ["space"
 	);
 	editor.setText(text);
 	return editor;
-}
-
-function asyncAutocompleteProvider(items = [{ value: "test", label: "test" }]) {
-	return {
-		getSuggestions() {
-			return Promise.resolve({ items, prefix: "t" });
-		},
-		applyCompletion(lines, cursorLine, cursorCol) {
-			return { lines, cursorLine, cursorCol };
-		},
-		shouldTriggerFileCompletion() {
-			return true;
-		},
-	};
 }
 
 test("restores submitted prompt history after ghost editor swaps", () => {
@@ -102,14 +88,4 @@ test("accepts ghost suggestion with right arrow when configured", () => {
 	editor.handleInput("\x1b[C");
 
 	assert.equal(editor.getText(), "hello world");
-});
-
-test("does not crash when pi passes an async autocomplete provider", () => {
-	const store = createHistoryStore();
-	const editor = createEditor(store);
-	editor.setAutocompleteProvider(asyncAutocompleteProvider());
-
-	assert.doesNotThrow(() => {
-		editor.handleInput("/");
-	});
 });

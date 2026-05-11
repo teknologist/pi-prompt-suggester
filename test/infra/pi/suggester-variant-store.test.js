@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import os from "node:os";
 import path from "node:path";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
-import { SuggesterVariantStore } from "../../../dist/infra/pi/suggester-variant-store.js";
+import { SuggesterVariantStore } from "../../../src/infra/pi/suggester-variant-store.js";
 
 const baseConfig = {
 	schemaVersion: 7,

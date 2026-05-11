@@ -15,7 +15,7 @@ import {
 	handleAbCommand,
 	renderStatus,
 } from "./infra/pi/command-handlers.js";
-import { acceptWidgetSuggestion, notifyActiveUi, refreshSuggesterUi, withActiveUi } from "./infra/pi/ui-adapter.js";
+import { acceptWidgetSuggestion, refreshSuggesterUi } from "./infra/pi/ui-adapter.js";
 import { createUiContext, type UiContextLike } from "./infra/pi/ui-context.js";
 
 export default function suggester(pi: ExtensionAPI) {
@@ -23,38 +23,37 @@ export default function suggester(pi: ExtensionAPI) {
 	let ghostEditorInstallState: GhostEditorInstallState | undefined;
 
 	function syncGhostEditorInstallation(ctx: ExtensionContext, composition: AppComposition): void {
-		withActiveUi(ctx, (activeCtx) => {
-			const sessionFile = activeCtx.sessionManager.getSessionFile() ?? null;
-			switch (getGhostEditorSyncAction({
-				state: ghostEditorInstallState,
-				context: activeCtx,
-				displayMode: composition.config.suggestion.displayMode,
-				sessionFile,
-			})) {
-				case "noop":
-					return;
-				case "uninstall":
-					activeCtx.ui.setEditorComponent(undefined);
-					ghostEditorInstallState = undefined;
-					return;
-				case "install":
-					break;
-			}
+		if (!ctx.hasUI) return;
+		const sessionFile = ctx.sessionManager.getSessionFile() ?? null;
+		switch (getGhostEditorSyncAction({
+			state: ghostEditorInstallState,
+			context: ctx,
+			displayMode: composition.config.suggestion.displayMode,
+			sessionFile,
+		})) {
+			case "noop":
+				return;
+			case "uninstall":
+				ctx.ui.setEditorComponent(undefined);
+				ghostEditorInstallState = undefined;
+				return;
+			case "install":
+				break;
+		}
 
-			activeCtx.ui.setEditorComponent((tui, theme, kb) =>
-				new GhostSuggestionEditor(
-					tui,
-					theme,
-					kb,
-					() => composition.runtimeRef.getSuggestion(),
-					() => composition.runtimeRef.getSuggestionRevision(),
-					composition.config.suggestion.ghostAcceptKeys,
-					() => composition.runtimeRef.getEditorHistoryState(),
-					(state) => composition.runtimeRef.setEditorHistoryState(state),
-				),
-			);
-			ghostEditorInstallState = { context: activeCtx, sessionFile };
-		});
+		ctx.ui.setEditorComponent((tui, theme, kb) =>
+			new GhostSuggestionEditor(
+				tui,
+				theme,
+				kb,
+				() => composition.runtimeRef.getSuggestion(),
+				() => composition.runtimeRef.getSuggestionRevision(),
+				composition.config.suggestion.ghostAcceptKeys,
+				() => composition.runtimeRef.getEditorHistoryState(),
+				(state) => composition.runtimeRef.setEditorHistoryState(state),
+			),
+		);
+		ghostEditorInstallState = { context: ctx, sessionFile };
 	}
 
 	async function getComposition(): Promise<AppComposition> {
@@ -83,6 +82,7 @@ export default function suggester(pi: ExtensionAPI) {
 	}
 
 	function syncSuggestionUi(ctx: ExtensionContext, composition: AppComposition): void {
+		if (!ctx.hasUI) return;
 		syncGhostEditorInstallation(ctx, composition);
 		refreshSuggesterUi(getUiContext(composition));
 	}
@@ -93,7 +93,7 @@ export default function suggester(pi: ExtensionAPI) {
 			const composition = await setRuntimeContext(ctx);
 			const result = acceptWidgetSuggestion(getUiContext(composition));
 			if (result === "mismatch") {
-				notifyActiveUi(ctx, "Current editor text no longer matches the suggestion.", "warning");
+				ctx.ui.notify("Current editor text no longer matches the suggestion.", "warning");
 			}
 		},
 	});
@@ -126,6 +126,11 @@ export default function suggester(pi: ExtensionAPI) {
 			composition.runtimeRef.setLastTurnContext(historicalTurn);
 			await composition.orchestrators.agentEnd.handle(historicalTurn, generationId);
 		},
+		onSessionShutdown: async (ctx) => {
+			const composition = await getComposition();
+			composition.orchestrators.reseedRunner.cancelPending();
+			composition.runtimeRef.clearContext(ctx);
+		},
 		onAgentEnd: async (turn, ctx) => {
 			if (!turn) return;
 			const composition = await setRuntimeContext(ctx);
@@ -150,7 +155,7 @@ export default function suggester(pi: ExtensionAPI) {
 				reason: "manual",
 				changedFiles: [],
 			});
-			notifyActiveUi(ctx, "suggester reseed queued", "info");
+			ctx.ui.notify("suggester reseed queued", "info");
 		},
 		onStatusCommand: async (ctx) => {
 			const composition = await setRuntimeContext(ctx);
@@ -212,7 +217,7 @@ export default function suggester(pi: ExtensionAPI) {
 		onSeedTraceCommand: async (args, ctx) => {
 			const composition = await setRuntimeContext(ctx);
 			await handleSeedTraceCommand(args, pi, composition);
-			notifyActiveUi(ctx, "suggester seed trace sent to chat", "info");
+			ctx.ui.notify("suggester seed trace sent to chat", "info");
 		},
 	});
 

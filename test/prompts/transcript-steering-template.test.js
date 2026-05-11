@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { renderTranscriptSteeringPrompt } from "../../dist/prompts/transcript-steering-template.js";
+import { renderTranscriptSteeringPrompt } from "../../src/prompts/transcript-steering-template.js";
 
 const baseContext = {
 	systemPrompt: "system prompt",

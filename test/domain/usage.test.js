@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { addUsageStats, accumulateUsage, createEmptyUsage, emptyUsageStats, normalizeUsageStats } from "../../dist/domain/usage.js";
+import { addUsageStats, accumulateUsage, createEmptyUsage, emptyUsageStats, normalizeUsageStats } from "../../src/domain/usage.js";
 
 test("addUsageStats increments counters and keeps last usage", () => {
 	const current = emptyUsageStats();

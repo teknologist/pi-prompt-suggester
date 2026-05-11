@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { renderSuggestionPrompt } from "../../dist/prompts/suggestion-template.js";
+import { renderSuggestionPrompt } from "../../src/prompts/suggestion-template.js";
 
 const baseContext = {
 	turnStatus: "success",
@@ -26,6 +26,8 @@ test("renderSuggestionPrompt uses low-meta next-user-message framing", () => {
 	const prompt = renderSuggestionPrompt(baseContext);
 	assert.match(prompt, /Write the next message the user would most likely send/i);
 	assert.match(prompt, /Do not describe the instructions you were given/i);
+	assert.match(prompt, /Do not include markdown fences/i);
+	assert.match(prompt, /Return one plain next-user message/i);
 	assert.match(prompt, /prefer affirmation only/i);
 });
 

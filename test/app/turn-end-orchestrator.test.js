@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { TurnEndOrchestrator } from "../../dist/app/orchestrators/turn-end.js";
-import { INITIAL_RUNTIME_STATE } from "../../dist/domain/state.js";
+import { TurnEndOrchestrator } from "../../src/app/orchestrators/turn-end.js";
+import { INITIAL_RUNTIME_STATE } from "../../src/domain/state.js";
 
 function createConfig() {
 	return {

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { getGhostEditorSyncAction } from "../../../dist/infra/pi/ghost-editor-installation.js";
+import { getGhostEditorSyncAction } from "../../../src/infra/pi/ghost-editor-installation.js";
 
 function context(id) {
 	return { id };

@@ -48,8 +48,10 @@ export interface ReseedRunnerDeps {
 
 export class ReseedRunner {
 	private running = false;
-	private pendingTrigger: ReseedTrigger | null = null;
+	private runningEpoch: number | null = null;
+	private pendingTrigger: { epoch: number; trigger: ReseedTrigger } | null = null;
 	private consecutiveFailureCount = 0;
+	private cancellationEpoch = 0;
 	private readonly cwd: string;
 	private readonly configFingerprint: string;
 
@@ -58,18 +60,33 @@ export class ReseedRunner {
 		this.configFingerprint = computeConfigFingerprint(deps.config);
 	}
 
+	public cancelPending(): void {
+		this.cancellationEpoch += 1;
+		this.pendingTrigger = null;
+	}
+
+	private isCancelled(epoch: number): boolean {
+		return epoch !== this.cancellationEpoch;
+	}
+
 	public async trigger(trigger: ReseedTrigger): Promise<void> {
 		if (!this.deps.config.reseed.enabled) return;
-		if (this.running) {
-			this.pendingTrigger = this.mergeTriggers(this.pendingTrigger, trigger);
+		const epoch = this.cancellationEpoch;
+		if (this.running && this.runningEpoch === epoch) {
+			const pendingTrigger = this.pendingTrigger?.epoch === epoch ? this.pendingTrigger.trigger : null;
+			this.pendingTrigger = {
+				epoch,
+				trigger: this.mergeTriggers(pendingTrigger, trigger),
+			};
 			this.deps.logger.info("reseed.pending", { reason: trigger.reason, changedFiles: trigger.changedFiles });
 			return;
 		}
 
 		this.running = true;
+		this.runningEpoch = epoch;
 		void this.deps.taskQueue
 			.enqueue("suggester:reseed", async () => {
-				await this.processTriggerLoop(trigger);
+				await this.processTriggerLoop(trigger, epoch);
 			})
 			.catch((error) => {
 				this.deps.logger.error("reseed.queue.failed", {
@@ -77,13 +94,16 @@ export class ReseedRunner {
 				});
 			})
 			.finally(() => {
-				this.running = false;
+				if (this.runningEpoch === epoch) {
+					this.running = false;
+					this.runningEpoch = null;
+				}
 			});
 	}
 
-	private async processTriggerLoop(initialTrigger: ReseedTrigger): Promise<void> {
+	private async processTriggerLoop(initialTrigger: ReseedTrigger, epoch: number): Promise<void> {
 		let nextTrigger: ReseedTrigger | null = initialTrigger;
-		while (nextTrigger) {
+		while (nextTrigger && !this.isCancelled(epoch)) {
 			const current = nextTrigger;
 			nextTrigger = null;
 			const runId = createRunId();
@@ -95,6 +115,7 @@ export class ReseedRunner {
 
 			try {
 				const previousSeed = await this.deps.seedStore.load();
+				if (this.isCancelled(epoch)) return;
 				const seedResult = await this.deps.modelClient.generateSeed({
 					reseedTrigger: current,
 					previousSeed,
@@ -107,7 +128,9 @@ export class ReseedRunner {
 					},
 					runId,
 				});
+				if (this.isCancelled(epoch)) return;
 				await this.recordSeederUsage(seedResult.usage);
+				if (this.isCancelled(epoch)) return;
 				const seed = await this.finalizeSeed(seedResult.seed, current);
 				await this.deps.seedStore.save(seed);
 				this.consecutiveFailureCount = 0;
@@ -120,6 +143,7 @@ export class ReseedRunner {
 					cost: seedResult.usage?.costTotal,
 				});
 			} catch (error) {
+				if (this.isCancelled(epoch)) return;
 				const usage = this.extractUsageFromError(error);
 				if (usage) {
 					await this.recordSeederUsage(usage);
@@ -140,8 +164,8 @@ export class ReseedRunner {
 				}
 			}
 
-			if (this.pendingTrigger) {
-				nextTrigger = this.pendingTrigger;
+			if (!this.isCancelled(epoch) && this.pendingTrigger?.epoch === epoch) {
+				nextTrigger = this.pendingTrigger.trigger;
 				this.pendingTrigger = null;
 			}
 		}

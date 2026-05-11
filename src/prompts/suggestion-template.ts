@@ -41,6 +41,9 @@ export function renderSuggestionPrompt(context: SuggestionPromptContext): string
 Return only the user's message text.
 Do not explain.
 Do not describe the instructions you were given.
+Do not copy text from LatestAssistantMessage unless it is exactly what the user would type.
+Do not include markdown fences, bullets, headings, quotes, or labels.
+Return one plain next-user message, in the user's voice.
 If no plausible next user message is clear, return exactly ${context.noSuggestionToken}.
 
 TurnStatus:
@@ -86,6 +89,7 @@ Guidance:
 - If the latest assistant message proposed a next step and it fits, a short reply like "Yes.", "Go ahead.", or "Proceed." is often best.
 - Only add more text when it adds new information such as a constraint, correction, or emphasis.
 - Do not restate, summarize, or paraphrase the assistant's proposal unless repeating a small part is necessary to add that new information.
+- Do not echo assistant examples, code fences, or suggested test prompts verbatim with surrounding explanatory text.
 - If nothing new needs to be added, prefer affirmation only.
 - If the assistant's direction clearly conflicts with the user's recent behavior or ProjectIntent, write a natural pivot instead.
 - Keep the result under ${context.maxSuggestionChars} characters. Prefer fewer when possible.`;

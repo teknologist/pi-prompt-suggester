@@ -4,7 +4,6 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { completeSimple, type Message, type Model, type ThinkingLevel as AiThinkingLevel, type UserMessage } from "@earendil-works/pi-ai";
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { notifyActiveUi } from "../pi/ui-adapter.js";
 import type { ModelClient, ModelInvocationSettings, SuggestionModelContext } from "../../app/ports/model-client.js";
 import type { Logger } from "../../app/ports/logger.js";
 import type { SuggestionPromptContext } from "../../app/services/prompt-context-builder.js";
@@ -124,20 +123,17 @@ function preview(value: string, maxChars: number = 500): string {
 
 function extractText(content: unknown): string {
 	if (!Array.isArray(content)) return "";
-	// First try to extract from text blocks.
-	const textBlocks = content
-		.filter((block) => block && typeof block === "object" && "type" in block && (block as { type?: string }).type === "text")
-		.map((block) => String((block as { text?: unknown }).text ?? ""))
-		.join("\n")
-		.trim();
-	if (textBlocks) return textBlocks;
-	// Fall back to thinking blocks when no text blocks are present.
 	return content
-		.filter((block) => block && typeof block === "object" && "type" in block && (block as { type?: string }).type === "thinking")
-		.map((block) => String((block as { thinking?: unknown }).thinking ?? ""))
+		.map((block) => {
+			if (block && typeof block === "object" && "type" in block && (block as { type?: string }).type === "text") {
+				return String((block as { text?: unknown }).text ?? "");
+			}
+			return "";
+		})
 		.join("\n")
 		.trim();
 }
+
 function isTranscriptSuggestionContext(context: SuggestionModelContext): context is TranscriptSuggestionPromptContext {
 	return "transcriptMessages" in context;
 }
@@ -682,11 +678,12 @@ export class PiModelClient implements ModelClient {
 				"Set /suggester model suggester <supported-provider/model> or switch the session to a provider that this extension can call directly.",
 		});
 
-		notifyActiveUi(
-			ctx,
-			`Prompt suggester skipped this turn because provider '${error.providerApi}' isn't directly compatible. Set /suggester model suggester <supported-provider/model> to use an explicit model.`,
-			"warning",
-		);
+		if (ctx.hasUI) {
+			ctx.ui.notify(
+				`Prompt suggester skipped this turn because provider '${error.providerApi}' isn't directly compatible. Set /suggester model suggester <supported-provider/model> to use an explicit model.`,
+				"warning",
+			);
+		}
 	}
 
 	private async resolveRequestAuth(
@@ -702,7 +699,7 @@ export class PiModelClient implements ModelClient {
 		if (typeof modelRegistry.getApiKeyAndHeaders === "function") {
 			const auth = await modelRegistry.getApiKeyAndHeaders(model);
 			if (!auth.ok) {
-				throw new Error(auth.error || "Model authentication failed");
+				throw new Error(auth.error);
 			}
 			return {
 				apiKey: auth.apiKey,

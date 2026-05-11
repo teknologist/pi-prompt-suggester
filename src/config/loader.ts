@@ -3,7 +3,6 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readJsonIfExists, writeJson } from "../infra/storage/json-file.js";
-import { projectSuggesterStateDir } from "../infra/pi/project-state-paths.js";
 import type { PromptSuggesterConfig } from "./types.js";
 import { normalizeConfig, normalizeOverrideConfig, validateConfig } from "./schema.js";
 
@@ -90,20 +89,19 @@ export class FileConfigLoader implements ConfigLoader {
 		const cwdDefaultPath = path.join(this.cwd, "config", "prompt-suggester.config.json");
 		const defaultPath = (await pathExists(cwdDefaultPath)) ? cwdDefaultPath : PACKAGE_DEFAULT_CONFIG_PATH;
 		const userPath = path.join(this.homeDir, ".pi", "suggester", "config.json");
-		const projectStateDir = projectSuggesterStateDir(this.cwd);
-		const projectPath = projectStateDir ? path.join(projectStateDir, "config.json") : undefined;
+		const projectPath = path.join(this.cwd, ".pi", "suggester", "config.json");
 
 		const defaultConfig = await readRequiredConfig(defaultPath);
 		const [userConfig, projectConfig] = await Promise.all([
 			readOverrideConfig(userPath, defaultConfig),
-			projectPath ? readOverrideConfig(projectPath, defaultConfig) : undefined,
+			readOverrideConfig(projectPath, defaultConfig),
 		]);
 		const merged = deepMerge(deepMerge(defaultConfig, userConfig), projectConfig);
 		const normalized = normalizeConfig(merged, defaultConfig);
 
 		if (!validateConfig(normalized.config)) {
 			throw new Error(
-				`Failed to normalize suggester config. Base defaults from ${defaultPath}; overrides from ${userPath} and ${projectPath ?? "<project overrides disabled at filesystem root>"}.`,
+				`Failed to normalize suggester config. Base defaults from ${defaultPath}; overrides from ${userPath} and ${projectPath}.`,
 			);
 		}
 		return normalized.config;

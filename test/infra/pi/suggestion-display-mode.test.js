@@ -5,7 +5,7 @@ import {
 	isSuggestionDisplayMode,
 	usesGhostEditor,
 	usesWidgetSuggestion,
-} from "../../../dist/infra/pi/suggestion-display-mode.js";
+} from "../../../src/infra/pi/suggestion-display-mode.js";
 
 test("suggestion display mode helpers distinguish ghost and widget modes", () => {
 	assert.equal(isSuggestionDisplayMode("ghost"), true);

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { PiSessionTranscriptProvider } from "../../../dist/infra/pi/session-transcript-provider.js";
+import { PiSessionTranscriptProvider } from "../../../src/infra/pi/session-transcript-provider.js";
 
 test("PiSessionTranscriptProvider prefers the session manager's effective context", () => {
 	const provider = new PiSessionTranscriptProvider({

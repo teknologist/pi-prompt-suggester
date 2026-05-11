@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { SuggestionEngine } from "../../dist/app/services/suggestion-engine.js";
+import { SuggestionEngine } from "../../src/app/services/suggestion-engine.js";
 
 function createConfig(overrides = {}) {
 	return {

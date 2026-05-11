@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildModelSelectionItems } from "../../../dist/infra/pi/commands/model-selector.js";
+import { buildModelSelectionItems } from "../../../src/infra/pi/commands/model-selector.js";
 
 const models = [
 	{ provider: "openai", id: "gpt-5", name: "GPT-5" },
